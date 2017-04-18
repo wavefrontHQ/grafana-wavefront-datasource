@@ -1,6 +1,6 @@
 # Wavefront Datasource Plugin for Grafana
 
-This plugin enables [Wavefront](www.wavefront.com) as a Grafana 4 datasource.
+This plugin enables [Wavefront](https://www.wavefront.com) as a Grafana 4 datasource.
 
 ## Development
 - `git checkout`
