@@ -1,0 +1,11 @@
+declare function dateToEpochSeconds(date: any): number;
+declare function intervalToSeconds(str: any): number;
+declare function sanitizeUrl(url: any): any;
+declare function sanitizeTag(tag: any): any;
+declare function sanitizePartial(str: any): any;
+declare function stripQuotesAndTrim(s: any): any;
+declare function nameForTimeseries(target: any, query: any, ts: any, templateSrv: any): string;
+declare function clearErrorsAndWarnings(target: any): void;
+declare function errorMsg(result: any): any;
+declare function logResult(result: any): void;
+export { dateToEpochSeconds, intervalToSeconds, sanitizeUrl, sanitizeTag, sanitizePartial, stripQuotesAndTrim, nameForTimeseries, clearErrorsAndWarnings, errorMsg, logResult };

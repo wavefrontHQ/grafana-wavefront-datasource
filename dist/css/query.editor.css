@@ -1,0 +1,9 @@
+.query-row-control-item {
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.query-row-section-header {
+    vertical-align: top;
+    display: inline-block;
+}

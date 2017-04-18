@@ -1,0 +1,28 @@
+{
+    "compilerOptions": {
+        "alwaysStrict": true,
+        "sourceMap": true,
+        "declaration": true,
+        "outDir": "./dist",
+        "noImplicitAny": false,
+        "target": "es5",
+        "module": "system",
+        "noEmitOnError": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "noImplicitReturns":false,
+        "noImplicitThis":false,
+        "noImplicitUseStrict":false,
+        "noUnusedLocals":false,
+        "moduleResolution": "classic",
+        "removeComments": true
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "**/*.spec.ts"
+    ]
+
+}
