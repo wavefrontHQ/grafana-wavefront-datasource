@@ -425,7 +425,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         }
 
         if (tags.length) {
-            query += "," + this.makeFilterString(tags);
+            query += ", " + this.makeFilterString(tags);
         }
 
         query += ")";

@@ -331,7 +331,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                 tags.push(args[i]);
             }
             if (tags.length) {
-                query += "," + _this.makeFilterString(tags);
+                query += ", " + _this.makeFilterString(tags);
             }
             query += ")";
             if (!ignoreFunctions && target.functions) {
