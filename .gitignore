@@ -8,3 +8,6 @@ node_modules/
 # Mac Stuff
 .DS_Store
 
+# Build leftovers
+dev-build/
+

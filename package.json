@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "rm -rf ./dist && ./node_modules/.bin/tsc && cp ./src/plugin.json ./dist && cp -r ./src/partials ./dist && cp -r ./src/css ./dist  && cp -r ./src/img ./dist && cp ./src/plugin/*.js ./dist/plugin",
-    "dev-build": "./node_modules/.bin/tsc --outdir ./src",
+    "dev-build": "rm -rf ./dev-build && cp -r ./src ./src-tmp && ./node_modules/.bin/tsc --outdir ./src && mv ./src ./dev-build && mv ./src-tmp ./src",
     "tsc" : "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start-grafana": "cd /usr/local/Cellar/grafana/4.1.1/share/grafana/conf && grafana-server",
