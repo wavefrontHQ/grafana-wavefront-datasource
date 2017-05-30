@@ -30,13 +30,12 @@ System.register([], function (exports_1, context_1) {
                     var _this = this;
                     return promise()
                         .catch(function (result) {
+                        if (result.data.error) {
+                            return _this.$q.reject(result);
+                        }
                         var timeInFlight = Date.now() - result.err.config.issueTime;
-                        var shouldRetry = result.cancelled &&
-                            timeInFlight < CHROME_RANDOM_CANCEL_THRESHOLD &&
-                            attempts > 0;
-                        return shouldRetry
-                            ? _this.retryPromise(promise, attempts--)
-                            : _this.$q.reject(result);
+                        var shouldRetry = result.cancelled && timeInFlight < CHROME_RANDOM_CANCEL_THRESHOLD && attempts > 0;
+                        return shouldRetry ? _this.retryPromise(promise, attempts--) : _this.$q.reject(result);
                     });
                 };
                 return BackendSrvCancelledRetriesDecorator;

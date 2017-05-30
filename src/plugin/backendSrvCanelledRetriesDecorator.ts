@@ -25,8 +25,7 @@ export default class BackendSrvCancelledRetriesDecorator {
 
     public datasourceRequest(reqConfig: any) {
         const issueRequest = () => this.undecoratedBackendSrv.datasourceRequest({
-            ...reqConfig,
-            issueTime: Date.now(),
+            ...reqConfig, issueTime: Date.now(),
         });
         return this.retryPromise(issueRequest, this.attempts);
     }
@@ -34,16 +33,13 @@ export default class BackendSrvCancelledRetriesDecorator {
     private retryPromise(promise: () => angular.IPromise<any>, attempts: number) {
         return promise()
             .catch((result) => {
-                const timeInFlight = Date.now() -result.err.config.issueTime;
-                const shouldRetry =
-                    result.cancelled &&
-                    timeInFlight < CHROME_RANDOM_CANCEL_THRESHOLD &&
-                    attempts > 0;
+                if (result.data.error) {
+                    return this.$q.reject(result);
+                }
+                const timeInFlight = Date.now() - result.err.config.issueTime;
+                const shouldRetry = result.cancelled && timeInFlight < CHROME_RANDOM_CANCEL_THRESHOLD && attempts > 0;
 
-                return shouldRetry
-                    ? this.retryPromise(promise, attempts--)
-                    : this.$q.reject(result);
-            }
-            );
+                return shouldRetry ? this.retryPromise(promise, attempts--) : this.$q.reject(result);
+            });
     }
 }
