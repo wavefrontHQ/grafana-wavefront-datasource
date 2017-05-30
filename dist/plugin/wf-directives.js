@@ -267,7 +267,7 @@ define(
 								var $parameter = $(
 										"<a ng-click=\"\" class=\"wavefront-func-param-link\""
 										+ "style=\"color: orange\""
-										+ "bs-tooltip=\"\"" + wfFunction.definition.parameters[index].tooltip + "\"\">"
+										+ "bs-tooltip=\"" + wfFunction.definition.parameters[index].tooltip + "\">"
 										+ htmlForValue(index)
 										+ "</a>");
 								var $input = $(parameterTemplate);
