@@ -10,5 +10,5 @@ This plugin enables [Wavefront](https://www.wavefront.com) as a Grafana 4 dataso
 - `npm run build`
 
 ## Installation
-- Copy the dist folder to your grafana plugin directory (ie: `/usr/share/grafana/data/plugins/wavefront-datasource`)
+- Copy the dist folder to your grafana plugin directory (ie: `/usr/local/var/lib/grafana/plugins/wavefront-datasource`)
 - Restart grafana 
