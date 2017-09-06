@@ -58,11 +58,9 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         const endSecs = dateToEpochSeconds(options.range.to);
         const intervalSecs = intervalToSeconds(options.interval);
         const numPoints = Math.floor(Math.min(options.maxDataPoints, Math.floor((endSecs - startSecs) / intervalSecs))) || 4000;
-        const summarization = options.scopedVars.summarization.toUpperCase();
-        const granularity = options.scopedVars.granularity.substring(0, 1);
-        const includeObsoleteMetrics = options.scopedVars.includeObsolete || false;
+
         const baseEvent = {
-            autoEvents: false, e: endSecs, i: true, listMode: false, n: userString, p: numPoints, s: startSecs, strict: true, summarization, g: granularity, includeObsoleteMetrics,
+            autoEvents: false, e: endSecs, i: true, listMode: false, n: userString, p: numPoints, s: startSecs, strict: true,
         };
 
         // Create queries for each target and determine active count
@@ -71,13 +69,20 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
                 return this.q.when([]);
             }
 
-            const q = this.makeQuery(target);
+            const q = this.makeQuery(target, options.scopedVars);
             if (!q) {
                 return this.q.when([]);
             }
 
+            // options.scopedVars is the old (and broken) way to handle these. backwards compatible
+            const summarization = target.summarization ? target.summarization.toUpperCase() :
+                options.scopedVars.summarization ? options.scopedVars.summarization.toUpperCase() : "MEAN";
+            const granularity = target.granularity ? target.granularity.substring(0, 1) :
+                options.scopedVars.granularity  ? options.scopedVars.granularity.substring(0, 1) : "s";
+            const includeObsoleteMetrics = target.includeObsolete || options.scopedVars.includeObsolete || false;
+
             const reqConfig = this.baseRequestConfig("GET", "chart/api", {
-                ...baseEvent, q,
+                ...baseEvent, summarization, g: granularity, includeObsoleteMetrics, q,
             });
 
             return this.backendSrv.datasourceRequest(reqConfig).then((result) => {
@@ -150,36 +155,66 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         });
     };
 
-    this.matchChildren = (metricPrefix: string) => {
-        const reqConfig = this.baseRequestConfig("GET", "chart/metrics/all", {
-            trie: true, q: metricPrefix,
-        },);
+    this.metricFindQuery = (options: any) => {
+        const target = typeof (options) === "string" ? options : options.target;
 
-        return this.backendSrv.datasourceRequest(reqConfig).then((result) => {
-            return result.data.metrics || [];
-        }, (result) => []);
-    };
+        const boundedQuery = this.templateSrv.replace(target);
 
-    this.matchMetric = (metric: string) => {
-        metric = metric || "";
-
-        console.log("matchMetric() - " + metric);
-
-        const metricQuery = "ts(" + metric.trim();
-
-        return this.requestAutocomplete(metricQuery).then((result) => {
-            return _.filter(result.data.symbols, (m: string) => {
-                return (m.indexOf("=") < 0);
+        if (target === "") {
+            return $q.when([]).then(() => {
+                return [];
+            }, () => {
+                return [];
             });
-        }, (result) => []);
-    };
+        }
 
-    this.matchMetricAlt = (metric: string) => {
-        const query = "ts(\"" + stripQuotesAndTrim(metric) + "\")";
+        const resultWrapper = (result) => {
+            return _.map(result, (value) => {
+                return {text: value};
+            });
+        };
 
-        return this.requestQueryKeysLookup(query).then((result) => {
-            return result.data.metrics || [];
-        }, (result) => []);
+        // metric search: metrics: ts(...)
+        // wildcards in metric name are valid (and expected)
+        const metricsRegex = /metrics?\s*:(.*)/;
+        const metricsQuery = boundedQuery.match(metricsRegex);
+        if (metricsQuery) {
+            return this.matchMetricTS(metricsQuery[1]).then(resultWrapper);
+        }
+
+        // source search : sources: ts(...)
+        const sourceRegex = /sources?\s*:(.*)/;
+        const sourceQuery = boundedQuery.match(sourceRegex);
+        if (sourceQuery) {
+            return this.matchSourceTS(sourceQuery[1]).then(resultWrapper);
+        }
+
+        // Source tag search: sourceTags: ts(...)
+        const sourceTagRegex = /source[tT]ags?\s*:(.*)/;
+        const sourceTagQuery = boundedQuery.match(sourceTagRegex);
+        if (sourceTagQuery) {
+            return this.matchSourceTagTS(sourceTagQuery[1]).then(resultWrapper);
+        }
+
+        // Tag Name search: tagNames: ts(...)
+        const tagNameRegex = /tag[nN]ames?\s*:(.*)/;
+        const tagNameQuery = boundedQuery.match(tagNameRegex);
+        if (tagNameQuery) {
+            return this.matchPointTagTS(tagNameQuery[1]).then(resultWrapper);
+        }
+
+        // Tag Value search: tagValues(<tag>): ts(...)
+        const tagValueRegex = /tag[vV]alues?\s*\((.+)\)\s*:(.*)/;
+        const tagValueQuery = boundedQuery.match(tagValueRegex);
+        if (tagValueQuery) {
+            return this.matchPointTagValueTS(tagValueQuery[1], tagValueQuery[2]).then(resultWrapper);
+        }
+
+        return $q.when([]).then(() => {
+            return [];
+        }, () => {
+            return [];
+        });
     };
 
     this.matchQuery = (query: string, position: number) => {
@@ -193,41 +228,40 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         }, (result) => []);
     };
 
-    this.matchSource = (metric: string, host: string) => {
-        const query = "ts(\"" + stripQuotesAndTrim(metric) + "\", source=\"" + sanitizePartial(host) + "\")";
+    this.matchMetric = (metric: string) => {
+        metric = metric || "";
 
+        const metricQuery = "ts(" + metric.trim();
+
+        return this.requestAutocomplete(metricQuery).then((result) => {
+            return _.filter(result.data.symbols, (m: string) => {
+                return (m.indexOf("=") < 0);
+            });
+        }, (result) => []);
+    };
+
+    this.matchMetricTS = (query: string) => {
+        return this.requestQueryKeysLookup(query.trim()).then((result) => {
+            return result.data.metrics || [];
+        }, (result) => []);
+    };
+
+    this.matchSource = (metric: string, host: string, scopedVars: any) => {
+        let query = "ts(\"" + stripQuotesAndTrim(metric) + "\", source=\"" + sanitizePartial(host) + "\")";
+        query = this.templateSrv.replace(query, scopedVars);
+        
         return this.requestQueryKeysLookup(query).then((result) => {
             return result.data.hosts || [];
         }, (result) => []);
     };
 
-    this.matchPointTag = (partialTag: any, target: any) => {
-        partialTag = partialTag || "";
-        partialTag = partialTag.toLowerCase();
-
-        const query = this.makeQuery(target, true);
-
-        if (!query) {
-            return [];
-        }
-
-        return this.requestQueryKeysLookup(query).then((result) => {
-            // Generate all Point tags for the query
-            const allTags = {};
-            _.forEach(result.data.queryKeys, (qk) => {
-                _.merge(allTags, qk.tags);
-            });
-
-            // Filter by partial tag
-            const matches = _.filter(_.keys(allTags), (tag) => {
-                return tag.toLowerCase().indexOf(partialTag) > -1;
-            });
-
-            return matches;
+    this.matchSourceTS = (query: string) => {
+        return this.requestQueryKeysLookup(query.trim()).then((result) => {
+            return result.data.hosts || [];
         }, (result) => []);
     };
 
-    this.matchSourceTagName = (partialName: any) => {
+    this.matchSourceTag = (partialName: any) => {
         partialName = partialName || "";
         partialName = partialName.toLowerCase();
 
@@ -243,7 +277,51 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         }, (result) => []);
     };
 
-    this.matchPointTagValue = (tag: any, partialValue: any, target: any) => {
+    this.matchSourceTagTS = (query: string) => {
+        return this.requestQueryKeysLookup(query.trim()).then((result) => {
+            return result.data.matchingHostTags || [];
+        }, (result) => []);
+    };
+
+    this.matchPointTag = (partialTag: any, target: any, scopedVars: any) => {
+        partialTag = partialTag || "";
+        partialTag = partialTag.toLowerCase();
+        if (partialTag === "*") {
+            partialTag = "";
+        }
+
+        const query = this.makeQuery(target, scopedVars, true);
+
+        if (!query) {
+            return [];
+        }
+
+        return this.requestQueryKeysLookup(query).then((result) => {
+            // Generate all Point tags for the query
+            const allTags = {};
+            _.forEach(result.data.queryKeys, (qk) => {
+                _.merge(allTags, qk.tags);
+            });
+
+            // Filter by partial tag
+            return _.filter(_.keys(allTags), (tag) => {
+                return tag.toLowerCase().indexOf(partialTag) > -1;
+            });
+        }, (result) => []);
+    };
+
+    this.matchPointTagTS = (query: string) => {
+        return this.requestQueryKeysLookup(query.trim()).then((result) => {
+            // Generate all Point tags for the query
+            const allTags = {};
+            _.forEach(result.data.queryKeys, (qk) => {
+                _.merge(allTags, qk.tags);
+            });
+            return _.keys(allTags);
+        }, (result) => []);
+    };
+
+    this.matchPointTagValue = (tag: any, partialValue: any, target: any, scopedVars: any) => {
         // Don't try to autocomplete if the corresponding tag name is empty
         if (!tag) {
             return [];
@@ -256,7 +334,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
             key: sanitizeTag(tag), value: sanitizePartial(partialValue), type: "atom",
         };
 
-        const query = target.tags.length ? this.makeQuery(target, true, op, kvp) : this.makeQuery(target, true, kvp);
+        const query = target.tags && target.tags.length ? this.makeQuery(target, scopedVars, true, op, kvp) : this.makeQuery(target, true, kvp);
 
         return this.requestQueryKeysLookup(query).then((result) => {
             // Generate all Point tag values under the tag for the query
@@ -271,67 +349,17 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         }, (result) => []);
     };
 
-    this.metricFindQuery = (options: any) => {
-        const target = typeof (options) === "string" ? options : options.target;
-
-        const boundedQuery = this.templateSrv.replace(target);
-        const childrenRegex = /children\((.*)\)/;
-
-        const interpolated = {
-            target: this.templateSrv.replace(target),
-        };
-
-        const resultWrapper = (result) => {
-            return _.map(result, (value) => {
-                return {text: value};
+    this.matchPointTagValueTS = (tag: string, query: string) => {
+        return this.requestQueryKeysLookup(query.trim()).then((result) => {
+            // Generate all Point tag values under the tag for the query
+            const allValues = {};
+            _.forEach(result.data.queryKeys, (qk) => {
+                if (qk.tags[tag]) {
+                    allValues[qk.tags[tag]] = true;
+                }
             });
-        };
-
-        const childrenQuery = boundedQuery.match(childrenRegex);
-        if (childrenQuery) {
-            return this.matchChildren(childrenQuery[1]).then(resultWrapper);
-        }
-
-        const metricsRegex = /metric\((.*)\)/;
-        const metricsQuery = boundedQuery.match(metricsRegex);
-        if (metricsQuery) {
-            return this.matchMetricAlt(metricsQuery[1]).then(resultWrapper);
-        }
-
-        const hostNameRegex = /hostName\((.*),\s?(.*)\)/;
-        const hostNameQuery = boundedQuery.match(hostNameRegex);
-        if (hostNameQuery) {
-            return this.matchSource(hostNameQuery[1], hostNameQuery[2]).then(resultWrapper);
-        }
-
-        const tagNameRegex = /tagName\((.*),\s?(.*)\)/;
-        const tagNameQuery = boundedQuery.match(tagNameRegex);
-        if (tagNameQuery) {
-            return this.matchPointTag(tagNameQuery[2], {
-                metric: stripQuotesAndTrim(tagNameQuery[1]),
-            }).then(resultWrapper);
-        }
-
-        const tagValueRegex = /tagValue\((.*),\s?(.*),\s?(.*)\)/;
-        const tagValueQuery = boundedQuery.match(tagValueRegex);
-        if (tagValueQuery) {
-            return this.matchPointTagValue(tagValueQuery[2], tagValueQuery[3], {
-                metric: stripQuotesAndTrim(tagValueQuery[1]), tags: [],
-            }).then(resultWrapper);
-        }
-
-        return this.backendSrv.datasourceRequest({
-            data: interpolated, headers: {"Content-Type": "application/json"}, method: "POST", url: this.url + "/search",
-        }).then(this.mapToTextValue);
-    };
-
-    this.mapToTextValue = (result) => {
-        return _.map(result.data, (d: any, i) => {
-            if (d && d.text && d.value) {
-                return {text: d.text, value: d.value};
-            }
-            return {text: d, value: i};
-        });
+            return _.keys(allValues);
+        }, (result) => []);
     };
 
     this.requestQueryKeysLookup = (query) => {
@@ -350,25 +378,70 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         return this.backendSrv.datasourceRequest(reqConfig);
     };
 
-    this.buildQueryParameters = (options) => {
-        // remove placeholder targets
-        options.targets = _.filter(options.targets, (target: any) => {
-            return target.target !== "select metric";
-        });
+    this.makeQuery = (target, scopedVars?, ignoreFunctions?, ...args: any[]) => {
+        let query;
 
-        const targets = _.map(options.targets, (target: any) => {
-            const newTarget: any = {
-                hide: target.hide, refId: target.refId, type: target.type || "timeseries",
-            } as any;
+        if (target.textEditor) {
+            query = target.query;
+        } else {
+            query = this.buildQuery(target, ignoreFunctions, args);
+        }
 
-            if (target.target) {
-                newTarget.target = this.templateSrv.replace(target.target);
+        // Variable replacement
+        query = this.templateSrv.replace(query, scopedVars);
+        return query;
+    };
+
+    this.buildQuery = (target, ignoreFunctions?, ...args: any[]) => {
+        if (!target.metric) {
+            return "";
+        }
+
+        let query = "ts(\"" + target.metric + "\"";
+
+        // Filter part
+        const tags = _.clone(target.tags) || [];
+
+        // tslint:disable-next-line:prefer-for-of
+        for (let i = 0; i < args.length; ++i) {
+            if (args[i].length) {
+                tags.push(args[i]);
+            }
+        }
+
+        if (tags.length) {
+            query += ", " + this.buildFilterString(tags);
+        }
+
+        query += ")";
+
+        if (!ignoreFunctions && target.functions) {
+            query = _.reduce(target.functions, (q, f) => {
+                return functions.queryString(f, q);
+            }, query);
+        }
+
+        return query;
+    };
+
+    this.buildFilterString = (tags) => {
+        let result = "";
+        _.each(tags, (component) => {
+            switch (component.type) {
+                case "atom":
+                    result += sanitizeTag(component.key) + "=\"" + component.value + "\"";
+                    break;
+                case "operator":
+                    result += component.isAnd ? " and " : " or ";
+                    break;
+                case "parenthesis":
+                    result += component.isOpen ? "(" : ")";
+                    break;
+                default:
+                    break;
             }
         });
-
-        options.targets = targets;
-
-        return options;
+        return result;
     };
 
     /**
@@ -376,7 +449,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
      * @param method The request method (e.g. 'GET')
      * @param path the resource path
      * @param params request parameters
-     * @returns {XMLList|XML}
+     * @returns {JSON}
      */
     this.baseRequestConfig = (method, path, params) => {
         return {
@@ -406,59 +479,4 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         return this.backendSrv.datasourceRequest(reqConfig);
     };
 
-    this.makeQuery = (target, ignoreFunctions?, ...args: any[]) => {
-        if (target.textEditor) {
-            return this.templateSrv.replace(target.query);
-        }
-
-        if (!target.metric) {
-            return "";
-        }
-        let query = "ts(\"" + target.metric + "\"";
-
-        // Filter part
-        const tags = _.clone(target.tags) || [];
-
-        // tslint:disable-next-line:prefer-for-of
-        for (let i = 0; i < args.length; ++i) {
-            tags.push(args[i]);
-        }
-
-        if (tags.length) {
-            query += ", " + this.makeFilterString(tags);
-        }
-
-        query += ")";
-
-        if (!ignoreFunctions && target.functions) {
-            query = _.reduce(target.functions, (q, f) => {
-                return functions.queryString(f, q);
-            }, query);
-        }
-
-        // Variable replacement
-        query = this.templateSrv.replace(query);
-
-        return query;
-    };
-
-    this.makeFilterString = (tags) => {
-        let result = "";
-        _.each(tags, (component) => {
-            switch (component.type) {
-                case "atom":
-                    result += sanitizeTag(component.key) + "=\"" + component.value + "\"";
-                    break;
-                case "operator":
-                    result += component.isAnd ? " and " : " or ";
-                    break;
-                case "parenthesis":
-                    result += component.isOpen ? "(" : ")";
-                    break;
-                default:
-                    break;
-            }
-        });
-        return result;
-    };
 }

@@ -15,10 +15,12 @@ interface IRange {
 interface ITargets {
     refId: string;
     target: string;
-    wfQuery: any;
     hide: any;
     errors: any;
     warnings: any;
+    summarization: string;
+    granularity: string;
+    includeObsolete: boolean;
 }
 
 interface IGrafanaPluginDataSourceQueryOptions {

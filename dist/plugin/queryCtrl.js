@@ -39,25 +39,28 @@ System.register(["app/plugins/sdk", "lodash", "./functions", "./wf-directives.js
                         promise.then(callback);
                     };
                     _this.autoCompleteTagKey = function (key, callback) {
-                        _this.datasource.matchPointTag(key, _this.target).then(function (tags) {
+                        _this.datasource.matchPointTag(key, _this.target, _this.panel.scopedVars).then(function (tags) {
                             return ["source", "tag"].concat(tags);
                         }).then(callback);
                     };
                     _this.autoCompleteTagValue = function (key, callback) {
                         switch (_this.target.currentTagKey) {
                             case "source":
-                                _this.datasource.matchSource(_this.target.metric, key).then(callback);
+                                _this.datasource.matchSource(_this.target.metric, key, _this.panel.scopedVars).then(callback);
                                 return;
                             case "tag":
-                                _this.datasource.matchSourceTagName(key).then(callback);
+                                _this.datasource.matchSourceTag(key).then(callback);
                                 return;
                             default:
-                                _this.datasource.matchPointTagValue(_this.target.currentTagKey, key, _this.target).then(callback);
+                                _this.datasource.matchPointTagValue(_this.target.currentTagKey, key, _this.target, _this.panel.scopedVars).then(callback);
                         }
                     };
                     _this.autoCompleteQuery = function (query, callback) {
                         _this.datasource.matchQuery(query, _this.target.rawQueryPos).then(callback);
                     };
+                    _this.target.summarization = _this.panel.summarization;
+                    _this.target.granularity = _this.panel.granularity;
+                    _this.target.includeObsolete = _this.panel.includeObsolete;
                     _this.target.rawQueryPos = 0;
                     _this.target.errors = {};
                     _this.target.warnings = {};
@@ -69,7 +72,7 @@ System.register(["app/plugins/sdk", "lodash", "./functions", "./wf-directives.js
                 }
                 WavefrontQueryCtrl.prototype.toggleEditorMode = function () {
                     if (!this.target.textEditor && (!this.target.query || this.target.query === "")) {
-                        this.target.query = this.datasource.makeQuery(this.target);
+                        this.target.query = this.datasource.buildQuery(this.target);
                     }
                     this.target.textEditor = !this.target.textEditor;
                 };
@@ -146,6 +149,7 @@ System.register(["app/plugins/sdk", "lodash", "./functions", "./wf-directives.js
                                 else {
                                     lastOpen = cur.isOpen;
                                 }
+                                break;
                             default:
                                 break;
                         }
@@ -273,7 +277,8 @@ System.register(["app/plugins/sdk", "lodash", "./functions", "./wf-directives.js
                 };
                 WavefrontQueryCtrl.prototype.moveFunction = function (fromIndex, toIndex) {
                     function _move(a, b, c) {
-                        return a.splice(c, 0, a.splice(b, 1)[0]), a;
+                        a.splice(c, 0, a.splice(b, 1)[0]);
+                        return a;
                     }
                     _move(this.target.functions, fromIndex, toIndex);
                     this.refresh();
