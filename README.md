@@ -33,6 +33,7 @@ curl  -H "Content-Type: application/json" --user admin:admin 'http://localhost:3
 	- *metric* lists: `metrics: ts(...)`
 	- *source* lists: `sources: ts(...)`
 	- *source tag* lists: `sourceTags: ts(...)`
+	- *matching source tag* lists: `matchingSourceTags: ts(...)`
 	- *tag name* lists: `tagNames: ts(...)`
 	- *tag value* lists: `tagValues(<tag>): ts(...)`
 	- The `s` at the end of each query type is optional

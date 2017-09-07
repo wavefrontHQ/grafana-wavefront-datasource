@@ -163,6 +163,11 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             if (sourceTagQuery) {
                 return _this.matchSourceTagTS(sourceTagQuery[1]).then(resultWrapper);
             }
+            var matchingSourceTagRegex = /matching[sS]ource[tT]ags?\s*:(.*)/;
+            var matchingSourceTagQuery = boundedQuery.match(matchingSourceTagRegex);
+            if (matchingSourceTagQuery) {
+                return _this.matchMatchingSourceTagTS(matchingSourceTagQuery[1]).then(resultWrapper);
+            }
             var tagNameRegex = /tag[nN]ames?\s*:(.*)/;
             var tagNameQuery = boundedQuery.match(tagNameRegex);
             if (tagNameQuery) {
@@ -228,6 +233,11 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             }, function (result) { return []; });
         };
         this.matchSourceTagTS = function (query) {
+            return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
+                return result.data.hostTags || [];
+            }, function (result) { return []; });
+        };
+        this.matchMatchingSourceTagTS = function (query) {
             return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
                 return result.data.matchingHostTags || [];
             }, function (result) { return []; });

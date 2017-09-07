@@ -196,6 +196,13 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
             return this.matchSourceTagTS(sourceTagQuery[1]).then(resultWrapper);
         }
 
+        // Matching Source tag search: sourceTags: ts(...)
+        const matchingSourceTagRegex = /matching[sS]ource[tT]ags?\s*:(.*)/;
+        const matchingSourceTagQuery = boundedQuery.match(matchingSourceTagRegex);
+        if (matchingSourceTagQuery) {
+            return this.matchMatchingSourceTagTS(matchingSourceTagQuery[1]).then(resultWrapper);
+        }
+
         // Tag Name search: tagNames: ts(...)
         const tagNameRegex = /tag[nN]ames?\s*:(.*)/;
         const tagNameQuery = boundedQuery.match(tagNameRegex);
@@ -278,6 +285,12 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchSourceTagTS = (query: string) => {
+        return this.requestQueryKeysLookup(query.trim()).then((result) => {
+            return result.data.hostTags || [];
+        }, (result) => []);
+    };
+
+    this.matchMatchingSourceTagTS = (query: string) => {
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             return result.data.matchingHostTags || [];
         }, (result) => []);
