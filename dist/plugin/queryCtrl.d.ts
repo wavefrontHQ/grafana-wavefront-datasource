@@ -4,6 +4,7 @@ import "../css/query.editor.css!";
 export declare class WavefrontQueryCtrl extends QueryCtrl {
     static templateUrl: string;
     addTagMode: boolean;
+    panel: any;
     constructor($scope: any, $injector: any);
     toggleEditorMode(): void;
     getErrorMessage(): string;

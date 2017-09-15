@@ -4,4 +4,5 @@ export declare class WavefrontQueryOptionsCtrl {
     granularities: string[];
     panelCtrl: any;
     constructor();
+    refresh(): void;
 }

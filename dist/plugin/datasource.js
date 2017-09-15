@@ -55,21 +55,23 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             var endSecs = helpers_1.dateToEpochSeconds(options.range.to);
             var intervalSecs = helpers_1.intervalToSeconds(options.interval);
             var numPoints = Math.floor(Math.min(options.maxDataPoints, Math.floor((endSecs - startSecs) / intervalSecs))) || 4000;
-            var summarization = options.scopedVars.summarization.toUpperCase();
-            var granularity = options.scopedVars.granularity.substring(0, 1);
-            var includeObsoleteMetrics = options.scopedVars.includeObsolete || false;
             var baseEvent = {
-                autoEvents: false, e: endSecs, i: true, listMode: false, n: userString, p: numPoints, s: startSecs, strict: true, summarization: summarization, g: granularity, includeObsoleteMetrics: includeObsoleteMetrics,
+                autoEvents: false, e: endSecs, i: true, listMode: false, n: userString, p: numPoints, s: startSecs, strict: true,
             };
             var reqs = options.targets.map(function (target) {
                 if (target.hide) {
                     return _this.q.when([]);
                 }
-                var q = _this.makeQuery(target);
+                var q = _this.makeQuery(target, options.scopedVars);
                 if (!q) {
                     return _this.q.when([]);
                 }
-                var reqConfig = _this.baseRequestConfig("GET", "chart/api", __assign({}, baseEvent, { q: q }));
+                var summarization = target.summarization ? target.summarization.toUpperCase() :
+                    options.scopedVars.summarization ? options.scopedVars.summarization.toUpperCase() : "MEAN";
+                var granularity = target.granularity ? target.granularity.substring(0, 1) :
+                    options.scopedVars.granularity ? options.scopedVars.granularity.substring(0, 1) : "s";
+                var includeObsoleteMetrics = target.includeObsolete || options.scopedVars.includeObsolete || false;
+                var reqConfig = _this.baseRequestConfig("GET", "chart/api", __assign({}, baseEvent, { summarization: summarization, g: granularity, includeObsoleteMetrics: includeObsoleteMetrics, q: q }));
                 return _this.backendSrv.datasourceRequest(reqConfig).then(function (result) {
                     helpers_1.clearErrorsAndWarnings(target);
                     if (result.data.warnings) {
@@ -131,29 +133,56 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                 return [];
             });
         };
-        this.matchChildren = function (metricPrefix) {
-            var reqConfig = _this.baseRequestConfig("GET", "chart/metrics/all", {
-                trie: true, q: metricPrefix,
-            });
-            return _this.backendSrv.datasourceRequest(reqConfig).then(function (result) {
-                return result.data.metrics || [];
-            }, function (result) { return []; });
-        };
-        this.matchMetric = function (metric) {
-            metric = metric || "";
-            console.log("matchMetric() - " + metric);
-            var metricQuery = "ts(" + metric.trim();
-            return _this.requestAutocomplete(metricQuery).then(function (result) {
-                return lodash_1.default.filter(result.data.symbols, function (m) {
-                    return (m.indexOf("=") < 0);
+        this.metricFindQuery = function (options) {
+            var target = typeof (options) === "string" ? options : options.target;
+            var boundedQuery = _this.templateSrv.replace(target);
+            if (target === "") {
+                return $q.when([]).then(function () {
+                    return [];
+                }, function () {
+                    return [];
                 });
-            }, function (result) { return []; });
-        };
-        this.matchMetricAlt = function (metric) {
-            var query = "ts(\"" + helpers_1.stripQuotesAndTrim(metric) + "\")";
-            return _this.requestQueryKeysLookup(query).then(function (result) {
-                return result.data.metrics || [];
-            }, function (result) { return []; });
+            }
+            var resultWrapper = function (result) {
+                return lodash_1.default.map(result, function (value) {
+                    return { text: value };
+                });
+            };
+            var metricsRegex = /metrics?\s*:(.*)/;
+            var metricsQuery = boundedQuery.match(metricsRegex);
+            if (metricsQuery) {
+                return _this.matchMetricTS(metricsQuery[1]).then(resultWrapper);
+            }
+            var sourceRegex = /sources?\s*:(.*)/;
+            var sourceQuery = boundedQuery.match(sourceRegex);
+            if (sourceQuery) {
+                return _this.matchSourceTS(sourceQuery[1]).then(resultWrapper);
+            }
+            var sourceTagRegex = /source[tT]ags?\s*:(.*)/;
+            var sourceTagQuery = boundedQuery.match(sourceTagRegex);
+            if (sourceTagQuery) {
+                return _this.matchSourceTagTS(sourceTagQuery[1]).then(resultWrapper);
+            }
+            var matchingSourceTagRegex = /matching[sS]ource[tT]ags?\s*:(.*)/;
+            var matchingSourceTagQuery = boundedQuery.match(matchingSourceTagRegex);
+            if (matchingSourceTagQuery) {
+                return _this.matchMatchingSourceTagTS(matchingSourceTagQuery[1]).then(resultWrapper);
+            }
+            var tagNameRegex = /tag[nN]ames?\s*:(.*)/;
+            var tagNameQuery = boundedQuery.match(tagNameRegex);
+            if (tagNameQuery) {
+                return _this.matchPointTagTS(tagNameQuery[1]).then(resultWrapper);
+            }
+            var tagValueRegex = /tag[vV]alues?\s*\((.+)\)\s*:(.*)/;
+            var tagValueQuery = boundedQuery.match(tagValueRegex);
+            if (tagValueQuery) {
+                return _this.matchPointTagValueTS(tagValueQuery[1], tagValueQuery[2]).then(resultWrapper);
+            }
+            return $q.when([]).then(function () {
+                return [];
+            }, function () {
+                return [];
+            });
         };
         this.matchQuery = function (query, position) {
             query = query || "";
@@ -164,31 +193,33 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                 }) || [];
             }, function (result) { return []; });
         };
-        this.matchSource = function (metric, host) {
+        this.matchMetric = function (metric) {
+            metric = metric || "";
+            var metricQuery = "ts(" + metric.trim();
+            return _this.requestAutocomplete(metricQuery).then(function (result) {
+                return lodash_1.default.filter(result.data.symbols, function (m) {
+                    return (m.indexOf("=") < 0);
+                });
+            }, function (result) { return []; });
+        };
+        this.matchMetricTS = function (query) {
+            return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
+                return result.data.metrics || [];
+            }, function (result) { return []; });
+        };
+        this.matchSource = function (metric, host, scopedVars) {
             var query = "ts(\"" + helpers_1.stripQuotesAndTrim(metric) + "\", source=\"" + helpers_1.sanitizePartial(host) + "\")";
+            query = _this.templateSrv.replace(query, scopedVars);
             return _this.requestQueryKeysLookup(query).then(function (result) {
                 return result.data.hosts || [];
             }, function (result) { return []; });
         };
-        this.matchPointTag = function (partialTag, target) {
-            partialTag = partialTag || "";
-            partialTag = partialTag.toLowerCase();
-            var query = _this.makeQuery(target, true);
-            if (!query) {
-                return [];
-            }
-            return _this.requestQueryKeysLookup(query).then(function (result) {
-                var allTags = {};
-                lodash_1.default.forEach(result.data.queryKeys, function (qk) {
-                    lodash_1.default.merge(allTags, qk.tags);
-                });
-                var matches = lodash_1.default.filter(lodash_1.default.keys(allTags), function (tag) {
-                    return tag.toLowerCase().indexOf(partialTag) > -1;
-                });
-                return matches;
+        this.matchSourceTS = function (query) {
+            return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
+                return result.data.hosts || [];
             }, function (result) { return []; });
         };
-        this.matchSourceTagName = function (partialName) {
+        this.matchSourceTag = function (partialName) {
             partialName = partialName || "";
             partialName = partialName.toLowerCase();
             var reqConfig = _this.baseRequestConfig("GET", "api/manage/source");
@@ -201,7 +232,46 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                 });
             }, function (result) { return []; });
         };
-        this.matchPointTagValue = function (tag, partialValue, target) {
+        this.matchSourceTagTS = function (query) {
+            return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
+                return result.data.hostTags || [];
+            }, function (result) { return []; });
+        };
+        this.matchMatchingSourceTagTS = function (query) {
+            return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
+                return result.data.matchingHostTags || [];
+            }, function (result) { return []; });
+        };
+        this.matchPointTag = function (partialTag, target, scopedVars) {
+            partialTag = partialTag || "";
+            partialTag = partialTag.toLowerCase();
+            if (partialTag === "*") {
+                partialTag = "";
+            }
+            var query = _this.makeQuery(target, scopedVars, true);
+            if (!query) {
+                return [];
+            }
+            return _this.requestQueryKeysLookup(query).then(function (result) {
+                var allTags = {};
+                lodash_1.default.forEach(result.data.queryKeys, function (qk) {
+                    lodash_1.default.merge(allTags, qk.tags);
+                });
+                return lodash_1.default.filter(lodash_1.default.keys(allTags), function (tag) {
+                    return tag.toLowerCase().indexOf(partialTag) > -1;
+                });
+            }, function (result) { return []; });
+        };
+        this.matchPointTagTS = function (query) {
+            return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
+                var allTags = {};
+                lodash_1.default.forEach(result.data.queryKeys, function (qk) {
+                    lodash_1.default.merge(allTags, qk.tags);
+                });
+                return lodash_1.default.keys(allTags);
+            }, function (result) { return []; });
+        };
+        this.matchPointTagValue = function (tag, partialValue, target, scopedVars) {
             if (!tag) {
                 return [];
             }
@@ -211,7 +281,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             var kvp = {
                 key: helpers_1.sanitizeTag(tag), value: helpers_1.sanitizePartial(partialValue), type: "atom",
             };
-            var query = target.tags.length ? _this.makeQuery(target, true, op, kvp) : _this.makeQuery(target, true, kvp);
+            var query = target.tags && target.tags.length ? _this.makeQuery(target, scopedVars, true, op, kvp) : _this.makeQuery(target, true, kvp);
             return _this.requestQueryKeysLookup(query).then(function (result) {
                 var allValues = {};
                 lodash_1.default.forEach(result.data.queryKeys, function (qk) {
@@ -222,57 +292,16 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                 return lodash_1.default.keys(allValues);
             }, function (result) { return []; });
         };
-        this.metricFindQuery = function (options) {
-            var target = typeof (options) === "string" ? options : options.target;
-            var boundedQuery = _this.templateSrv.replace(target);
-            var childrenRegex = /children\((.*)\)/;
-            var interpolated = {
-                target: _this.templateSrv.replace(target),
-            };
-            var resultWrapper = function (result) {
-                return lodash_1.default.map(result, function (value) {
-                    return { text: value };
+        this.matchPointTagValueTS = function (tag, query) {
+            return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
+                var allValues = {};
+                lodash_1.default.forEach(result.data.queryKeys, function (qk) {
+                    if (qk.tags[tag]) {
+                        allValues[qk.tags[tag]] = true;
+                    }
                 });
-            };
-            var childrenQuery = boundedQuery.match(childrenRegex);
-            if (childrenQuery) {
-                return _this.matchChildren(childrenQuery[1]).then(resultWrapper);
-            }
-            var metricsRegex = /metric\((.*)\)/;
-            var metricsQuery = boundedQuery.match(metricsRegex);
-            if (metricsQuery) {
-                return _this.matchMetricAlt(metricsQuery[1]).then(resultWrapper);
-            }
-            var hostNameRegex = /hostName\((.*),\s?(.*)\)/;
-            var hostNameQuery = boundedQuery.match(hostNameRegex);
-            if (hostNameQuery) {
-                return _this.matchSource(hostNameQuery[1], hostNameQuery[2]).then(resultWrapper);
-            }
-            var tagNameRegex = /tagName\((.*),\s?(.*)\)/;
-            var tagNameQuery = boundedQuery.match(tagNameRegex);
-            if (tagNameQuery) {
-                return _this.matchPointTag(tagNameQuery[2], {
-                    metric: helpers_1.stripQuotesAndTrim(tagNameQuery[1]),
-                }).then(resultWrapper);
-            }
-            var tagValueRegex = /tagValue\((.*),\s?(.*),\s?(.*)\)/;
-            var tagValueQuery = boundedQuery.match(tagValueRegex);
-            if (tagValueQuery) {
-                return _this.matchPointTagValue(tagValueQuery[2], tagValueQuery[3], {
-                    metric: helpers_1.stripQuotesAndTrim(tagValueQuery[1]), tags: [],
-                }).then(resultWrapper);
-            }
-            return _this.backendSrv.datasourceRequest({
-                data: interpolated, headers: { "Content-Type": "application/json" }, method: "POST", url: _this.url + "/search",
-            }).then(_this.mapToTextValue);
-        };
-        this.mapToTextValue = function (result) {
-            return lodash_1.default.map(result.data, function (d, i) {
-                if (d && d.text && d.value) {
-                    return { text: d.text, value: d.value };
-                }
-                return { text: d, value: i };
-            });
+                return lodash_1.default.keys(allValues);
+            }, function (result) { return []; });
         };
         this.requestQueryKeysLookup = function (query) {
             var lookbackStartSecs = Math.floor((new Date().getTime() - queryKeyLookbackMillis) / 1000);
@@ -286,41 +315,25 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             });
             return _this.backendSrv.datasourceRequest(reqConfig);
         };
-        this.buildQueryParameters = function (options) {
-            options.targets = lodash_1.default.filter(options.targets, function (target) {
-                return target.target !== "select metric";
-            });
-            var targets = lodash_1.default.map(options.targets, function (target) {
-                var newTarget = {
-                    hide: target.hide, refId: target.refId, type: target.type || "timeseries",
-                };
-                if (target.target) {
-                    newTarget.target = _this.templateSrv.replace(target.target);
-                }
-            });
-            options.targets = targets;
-            return options;
-        };
-        this.baseRequestConfig = function (method, path, params) {
-            return __assign({}, _this.requestConfigProto, { url: _this.url + path, method: method, params: params || {} });
-        };
-        this.requestAutocomplete = function (expression, position) {
-            var pos = position;
-            if (!pos && pos !== 0) {
-                pos = expression.length;
+        this.makeQuery = function (target, scopedVars, ignoreFunctions) {
+            var args = [];
+            for (var _i = 3; _i < arguments.length; _i++) {
+                args[_i - 3] = arguments[_i];
             }
-            var reqConfig = _this.baseRequestConfig("GET", "chart/autocomplete", {
-                exp: expression, p: pos,
-            });
-            return _this.backendSrv.datasourceRequest(reqConfig);
+            var query;
+            if (target.textEditor) {
+                query = target.query;
+            }
+            else {
+                query = _this.buildQuery(target, ignoreFunctions, args);
+            }
+            query = _this.templateSrv.replace(query, scopedVars);
+            return query;
         };
-        this.makeQuery = function (target, ignoreFunctions) {
+        this.buildQuery = function (target, ignoreFunctions) {
             var args = [];
             for (var _i = 2; _i < arguments.length; _i++) {
                 args[_i - 2] = arguments[_i];
-            }
-            if (target.textEditor) {
-                return _this.templateSrv.replace(target.query);
             }
             if (!target.metric) {
                 return "";
@@ -328,10 +341,12 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             var query = "ts(\"" + target.metric + "\"";
             var tags = lodash_1.default.clone(target.tags) || [];
             for (var i = 0; i < args.length; ++i) {
-                tags.push(args[i]);
+                if (args[i].length) {
+                    tags.push(args[i]);
+                }
             }
             if (tags.length) {
-                query += ", " + _this.makeFilterString(tags);
+                query += ", " + _this.buildFilterString(tags);
             }
             query += ")";
             if (!ignoreFunctions && target.functions) {
@@ -339,10 +354,9 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                     return functions_1.default.queryString(f, q);
                 }, query);
             }
-            query = _this.templateSrv.replace(query);
             return query;
         };
-        this.makeFilterString = function (tags) {
+        this.buildFilterString = function (tags) {
             var result = "";
             lodash_1.default.each(tags, function (component) {
                 switch (component.type) {
@@ -360,6 +374,19 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                 }
             });
             return result;
+        };
+        this.baseRequestConfig = function (method, path, params) {
+            return __assign({}, _this.requestConfigProto, { url: _this.url + path, method: method, params: params || {} });
+        };
+        this.requestAutocomplete = function (expression, position) {
+            var pos = position;
+            if (!pos && pos !== 0) {
+                pos = expression.length;
+            }
+            var reqConfig = _this.baseRequestConfig("GET", "chart/autocomplete", {
+                exp: expression, p: pos,
+            });
+            return _this.backendSrv.datasourceRequest(reqConfig);
         };
     }
     exports_1("WavefrontDatasource", WavefrontDatasource);

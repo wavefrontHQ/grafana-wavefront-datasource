@@ -9,9 +9,14 @@ export class WavefrontQueryCtrl extends QueryCtrl {
 
     public addTagMode = false;
 
+    public panel: any;
+
     constructor($scope, $injector) {
         super($scope, $injector);
 
+        this.target.summarization = this.panel.summarization;
+        this.target.granularity = this.panel.granularity;
+        this.target.includeObsolete = this.panel.includeObsolete;
         this.target.rawQueryPos = 0;
         this.target.errors = {};
         this.target.warnings = {};
@@ -23,7 +28,7 @@ export class WavefrontQueryCtrl extends QueryCtrl {
 
     public toggleEditorMode() {
         if (!this.target.textEditor && (!this.target.query || this.target.query === "")) {
-            this.target.query = this.datasource.makeQuery(this.target);
+            this.target.query = this.datasource.buildQuery(this.target);
         }
         this.target.textEditor = !this.target.textEditor;
     }
@@ -48,7 +53,7 @@ export class WavefrontQueryCtrl extends QueryCtrl {
     public autoCompleteMetric = (metric, callback) => {
         const promise = this.datasource.matchMetric(metric);
         promise.then(callback);
-    }
+    };
 
     /**
      * Tag Key/Name autocomplete hook
@@ -57,10 +62,10 @@ export class WavefrontQueryCtrl extends QueryCtrl {
      * @param callback
      */
     public autoCompleteTagKey = (key, callback) => {
-        this.datasource.matchPointTag(key, this.target).then((tags) => {
+        this.datasource.matchPointTag(key, this.target, this.panel.scopedVars).then((tags) => {
             return ["source", "tag"].concat(tags);
         }).then(callback);
-    }
+    };
 
     /**
      * Tag Value autocomplete hook
@@ -72,15 +77,15 @@ export class WavefrontQueryCtrl extends QueryCtrl {
     public autoCompleteTagValue = (key, callback) => {
         switch (this.target.currentTagKey) {
             case "source":
-                this.datasource.matchSource(this.target.metric, key).then(callback);
+                this.datasource.matchSource(this.target.metric, key, this.panel.scopedVars).then(callback);
                 return;
             case "tag":
-                this.datasource.matchSourceTagName(key).then(callback);
+                this.datasource.matchSourceTag(key).then(callback);
                 return;
             default:
-                this.datasource.matchPointTagValue(this.target.currentTagKey, key, this.target).then(callback);
+                this.datasource.matchPointTagValue(this.target.currentTagKey, key, this.target, this.panel.scopedVars).then(callback);
         }
-    }
+    };
 
     /**
      * Query autocomplete hook
@@ -91,7 +96,7 @@ export class WavefrontQueryCtrl extends QueryCtrl {
      */
     public autoCompleteQuery = (query, callback) => {
         this.datasource.matchQuery(query, this.target.rawQueryPos).then(callback);
-    }
+    };
 
     /**
      * Helper to track the cursor position within the raw query input.
@@ -187,6 +192,7 @@ export class WavefrontQueryCtrl extends QueryCtrl {
                     } else {
                         lastOpen = cur.isOpen;
                     }
+                    break;
                 default:
                     break;
             }
@@ -394,7 +400,8 @@ export class WavefrontQueryCtrl extends QueryCtrl {
     public moveFunction(fromIndex, toIndex) {
         // even though lodash has _.move function, we get a TypeScript compile error since it's not part of DefinitelyTyped
         function _move(a, b, c) {
-            return a.splice(c, 0, a.splice(b, 1)[0]), a;
+            a.splice(c, 0, a.splice(b, 1)[0]);
+            return a;
         }
 
         _move(this.target.functions, fromIndex, toIndex);
