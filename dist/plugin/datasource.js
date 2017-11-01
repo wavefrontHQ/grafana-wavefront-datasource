@@ -233,12 +233,12 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             }, function (result) { return []; });
         };
         this.matchSourceTagTS = function (query) {
-            return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
+            return _this.requestQueryKeysLookup(query.trim(), true).then(function (result) {
                 return result.data.hostTags || [];
             }, function (result) { return []; });
         };
         this.matchMatchingSourceTagTS = function (query) {
-            return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
+            return _this.requestQueryKeysLookup(query.trim(), true).then(function (result) {
                 return result.data.matchingHostTags || [];
             }, function (result) { return []; });
         };
@@ -303,14 +303,15 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                 return lodash_1.default.keys(allValues);
             }, function (result) { return []; });
         };
-        this.requestQueryKeysLookup = function (query) {
+        this.requestQueryKeysLookup = function (query, includeHostTags) {
             var lookbackStartSecs = Math.floor((new Date().getTime() - queryKeyLookbackMillis) / 1000);
             var request = {
                 queries: [{
                         query: query, name: "queryKeyLookup",
                     }], start: lookbackStartSecs,
             };
-            var reqConfig = _this.baseRequestConfig("GET", "chart/api/keys", {
+            var hostTagsFilter = includeHostTags ? "" : "?noHostTags=true";
+            var reqConfig = _this.baseRequestConfig("GET", "chart/api/keys" + hostTagsFilter, {
                 request: request,
             });
             return _this.backendSrv.datasourceRequest(reqConfig);

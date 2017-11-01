@@ -285,13 +285,13 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchSourceTagTS = (query: string) => {
-        return this.requestQueryKeysLookup(query.trim()).then((result) => {
+        return this.requestQueryKeysLookup(query.trim(), true).then((result) => {
             return result.data.hostTags || [];
         }, (result) => []);
     };
 
     this.matchMatchingSourceTagTS = (query: string) => {
-        return this.requestQueryKeysLookup(query.trim()).then((result) => {
+        return this.requestQueryKeysLookup(query.trim(), true).then((result) => {
             return result.data.matchingHostTags || [];
         }, (result) => []);
     };
@@ -375,7 +375,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         }, (result) => []);
     };
 
-    this.requestQueryKeysLookup = (query) => {
+    this.requestQueryKeysLookup = (query, includeHostTags?) => {
         const lookbackStartSecs = Math.floor((new Date().getTime() - queryKeyLookbackMillis) / 1000);
 
         const request = {
@@ -384,7 +384,9 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
             }], start: lookbackStartSecs,
         };
 
-        const reqConfig = this.baseRequestConfig("GET", "chart/api/keys", {
+        const hostTagsFilter = includeHostTags ? "" : "?noHostTags=true";
+
+        const reqConfig = this.baseRequestConfig("GET", "chart/api/keys" + hostTagsFilter, {
             request,
         });
 
