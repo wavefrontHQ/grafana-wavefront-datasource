@@ -310,7 +310,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                         query: query, name: "queryKeyLookup",
                     }], start: lookbackStartSecs,
             };
-            var reqConfig = _this.baseRequestConfig("GET", "chart/api/keys", {
+            var reqConfig = _this.baseRequestConfig("GET", "chart/api/keys?noHostTags=true", {
                 request: request,
             });
             return _this.backendSrv.datasourceRequest(reqConfig);

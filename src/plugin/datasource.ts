@@ -384,7 +384,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
             }], start: lookbackStartSecs,
         };
 
-        const reqConfig = this.baseRequestConfig("GET", "chart/api/keys", {
+        const reqConfig = this.baseRequestConfig("GET", "chart/api/keys?noHostTags=true", {
             request,
         });
 
