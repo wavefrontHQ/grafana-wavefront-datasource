@@ -25,9 +25,9 @@ System.register(["./plugin/datasource", "./plugin/configCtrl", "./plugin/queryCt
             AnnotationsQueryCtrl = (function () {
                 function AnnotationsQueryCtrl() {
                 }
+                AnnotationsQueryCtrl.templateUrl = "partials/annotations.editor.html";
                 return AnnotationsQueryCtrl;
             }());
-            AnnotationsQueryCtrl.templateUrl = "partials/annotations.editor.html";
             exports_1("AnnotationsQueryCtrl", AnnotationsQueryCtrl);
         }
     };

@@ -26,9 +26,9 @@ System.register([], function (exports_1, context_1) {
                     }
                     this.panelCtrl.refresh();
                 };
+                WavefrontQueryOptionsCtrl.templateUrl = "partials/query.options.html";
                 return WavefrontQueryOptionsCtrl;
             }());
-            WavefrontQueryOptionsCtrl.templateUrl = "partials/query.options.html";
             exports_1("WavefrontQueryOptionsCtrl", WavefrontQueryOptionsCtrl);
         }
     };

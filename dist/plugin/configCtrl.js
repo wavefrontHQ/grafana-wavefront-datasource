@@ -14,9 +14,9 @@ System.register([], function (exports_1, context_1) {
                     this.current.jsonData.wavefrontToken = "";
                     this.wavefrontTokenExists = false;
                 };
+                WavefrontConfigCtrl.templateUrl = "partials/config.html";
                 return WavefrontConfigCtrl;
             }());
-            WavefrontConfigCtrl.templateUrl = "partials/config.html";
             exports_1("WavefrontConfigCtrl", WavefrontConfigCtrl);
         }
     };

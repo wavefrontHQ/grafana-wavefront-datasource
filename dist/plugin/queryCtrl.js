@@ -298,9 +298,9 @@ System.register(["app/plugins/sdk", "lodash", "./functions", "./wf-directives.js
                     this.target.regexes.splice(index, 1);
                     this.refresh();
                 };
+                WavefrontQueryCtrl.templateUrl = "partials/query.editor.html";
                 return WavefrontQueryCtrl;
             }(sdk_1.QueryCtrl));
-            WavefrontQueryCtrl.templateUrl = "partials/query.editor.html";
             exports_1("WavefrontQueryCtrl", WavefrontQueryCtrl);
         }
     };
