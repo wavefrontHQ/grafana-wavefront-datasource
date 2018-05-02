@@ -19,7 +19,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     this.requestConfigProto = {
         headers: {
             "Content-Type": "application/json",
-        }, timeout: (instanceSettings.jsonData.timeoutSecs || this.defaultRequestTimeoutSecs) * 1000,
+        },
+        timeout: (instanceSettings.jsonData.timeoutSecs || this.defaultRequestTimeoutSecs) * 1000,
     };
 
     if (instanceSettings.jsonData.wavefrontToken) {

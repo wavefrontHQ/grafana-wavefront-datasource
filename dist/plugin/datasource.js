@@ -21,7 +21,8 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         this.requestConfigProto = {
             headers: {
                 "Content-Type": "application/json",
-            }, timeout: (instanceSettings.jsonData.timeoutSecs || this.defaultRequestTimeoutSecs) * 1000,
+            },
+            timeout: (instanceSettings.jsonData.timeoutSecs || this.defaultRequestTimeoutSecs) * 1000,
         };
         if (instanceSettings.jsonData.wavefrontToken) {
             this.requestConfigProto.headers["X-AUTH-TOKEN"] = instanceSettings.jsonData.wavefrontToken;
