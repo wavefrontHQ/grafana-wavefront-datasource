@@ -21,7 +21,7 @@
             <span class="gf-form-label width-10">Timeout (seconds)</span>
         </div>
         <div class="gf-form max-width-24">
-            <input type="number" class="gf-form-input max-width-24" ng-model="ctrl.current.jsonData.timeoutSecs" min="5" max="6" placeholder="auto" empty-to-null/>
+            <input type="number" class="gf-form-input max-width-24" ng-model="ctrl.current.jsonData.timeoutSecs" min="5" max="60" placeholder="auto" empty-to-null/>
             <info-popover mode="right-absolute">
                 Client-side timeout in seconds for requests against this Wavefront instance (default is 15)
             </info-popover>
