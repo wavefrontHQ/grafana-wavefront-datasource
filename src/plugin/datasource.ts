@@ -110,8 +110,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         }, this);
 
         return this.q.all(reqs).then((results) => {
-            var resultSeries = lodash_1.default.flatten(results);
-            var filteredSeries = lodash_1.default.filter(resultSeries, function (d) { return d.datapoints.length > 0; });
+            var resultSeries = _.flatten(results);
+            var filteredSeries = _.filter(resultSeries, function (d) { return d.datapoints.length > 0; });
             return { data: filteredSeries };
         });
     };
