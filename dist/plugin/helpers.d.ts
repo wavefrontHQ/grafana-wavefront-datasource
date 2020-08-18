@@ -8,4 +8,4 @@ declare function nameForTimeseries(target: any, query: any, ts: any, templateSrv
 declare function clearErrorsAndWarnings(target: any): void;
 declare function errorMsg(result: any): any;
 declare function logResult(result: any): void;
-export { dateToEpochSeconds, intervalToSeconds, sanitizeUrl, sanitizeTag, sanitizePartial, stripQuotesAndTrim, nameForTimeseries, clearErrorsAndWarnings, errorMsg, logResult };
+export { dateToEpochSeconds, intervalToSeconds, sanitizeUrl, sanitizeTag, sanitizePartial, stripQuotesAndTrim, nameForTimeseries, clearErrorsAndWarnings, errorMsg, logResult, };

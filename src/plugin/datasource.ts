@@ -111,7 +111,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
 
         return this.q.all(reqs).then((results) => {
             var resultSeries = _.flatten(results);
-            var filteredSeries = _.filter(resultSeries, function (d) { return d.datapoints.length > 0; });
+            var filteredSeries = _.filter(resultSeries, function (d) { return (d as any).datapoints.length > 0; });
             return { data: filteredSeries };
         });
     };

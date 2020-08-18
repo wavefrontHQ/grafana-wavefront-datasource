@@ -10,8 +10,8 @@ System.register(["app/plugins/sdk", "lodash", "./functions", "./wf-directives.js
             d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
         };
     })();
-    var __moduleName = context_1 && context_1.id;
     var sdk_1, lodash_1, functions_1, WavefrontQueryCtrl;
+    var __moduleName = context_1 && context_1.id;
     return {
         setters: [
             function (sdk_1_1) {

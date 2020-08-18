@@ -8,6 +8,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         }
         return t;
     };
+    var lodash_1, functions_1, helpers_1, backendSrvCanelledRetriesDecorator_1, queryKeyLookbackMillis;
     var __moduleName = context_1 && context_1.id;
     function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSrv) {
         var _this = this;
@@ -94,7 +95,9 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                 });
             }, _this);
             return _this.q.all(reqs).then(function (results) {
-                return { data: lodash_1.default.flatten(results) };
+                var resultSeries = lodash_1.default.flatten(results);
+                var filteredSeries = lodash_1.default.filter(resultSeries, function (d) { return d.datapoints.length > 0; });
+                return { data: filteredSeries };
             });
         };
         this.testDatasource = function () {
@@ -193,6 +196,14 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                     return query.substr(0, result.data.start) + symbol + query.substr(result.data.end);
                 }) || [];
             }, function (result) { return []; });
+        };
+        this.interpolateVariablesInQueries = function (queries) {
+            if (queries && queries.length > 0) {
+                return queries.map(function (query) {
+                    return __assign({}, query, { query: _this.templateSrv.replace(query.query) });
+                });
+            }
+            return queries;
         };
         this.matchMetric = function (metric) {
             metric = metric || "";
@@ -307,13 +318,18 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         this.requestQueryKeysLookup = function (query, includeHostTags) {
             var lookbackStartSecs = Math.floor((new Date().getTime() - queryKeyLookbackMillis) / 1000);
             var request = {
-                queries: [{
-                        query: query, name: "queryKeyLookup",
-                    }], start: lookbackStartSecs,
+                queries: [
+                    {
+                        query: query,
+                        name: "queryKeyLookup"
+                    },
+                ],
+                start: lookbackStartSecs,
+                noHostTags: true,
             };
             var hostTagsFilter = includeHostTags ? "" : "?noHostTags=true";
             var reqConfig = _this.baseRequestConfig("GET", "chart/api/keys" + hostTagsFilter, {
-                request: request,
+                request: JSON.stringify(request),
             });
             return _this.backendSrv.datasourceRequest(reqConfig);
         };
@@ -392,7 +408,6 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         };
     }
     exports_1("WavefrontDatasource", WavefrontDatasource);
-    var lodash_1, functions_1, helpers_1, backendSrvCanelledRetriesDecorator_1, queryKeyLookbackMillis;
     return {
         setters: [
             function (lodash_1_1) {

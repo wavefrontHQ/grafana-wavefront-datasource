@@ -1,7 +1,7 @@
 System.register(["./plugin/datasource", "./plugin/configCtrl", "./plugin/queryCtrl", "./plugin/queryOptionsCtrl"], function (exports_1, context_1) {
     "use strict";
-    var __moduleName = context_1 && context_1.id;
     var datasource_1, configCtrl_1, queryCtrl_1, queryOptionsCtrl_1, AnnotationsQueryCtrl;
+    var __moduleName = context_1 && context_1.id;
     return {
         setters: [
             function (datasource_1_1) {
