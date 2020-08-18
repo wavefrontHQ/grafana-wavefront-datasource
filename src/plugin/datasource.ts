@@ -1,7 +1,7 @@
 import _ from "lodash";
 import functions from "./functions";
 import {dateToEpochSeconds, intervalToSeconds, sanitizeUrl, sanitizeTag, sanitizePartial, stripQuotesAndTrim, nameForTimeseries, clearErrorsAndWarnings, errorMsg, logResult} from "./helpers";
-import angular = require("angular");
+import angular from "angular";
 import BackendSrvCancelledRetriesDecorator from './backendSrvCanelledRetriesDecorator';
 
 const queryKeyLookbackMillis = 7 * 24 * 60 * 60 * 1000;
@@ -110,7 +110,9 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         }, this);
 
         return this.q.all(reqs).then((results) => {
-            return {data: _.flatten(results)};
+            var resultSeries = lodash_1.default.flatten(results);
+            var filteredSeries = lodash_1.default.filter(resultSeries, function (d) { return d.datapoints.length > 0; });
+            return { data: filteredSeries };
         });
     };
 
@@ -235,6 +237,18 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
                 }) || [];
         }, (result) => []);
     };
+
+    this.interpolateVariablesInQueries = (queries: DataQuery[]): DataQuery[] => {
+      if (queries && queries.length > 0) {
+        return queries.map(query => {
+          return {
+            ...query,
+            query: this.templateSrv.replace(query.query),
+          };
+        });
+      }
+      return queries;
+    }
 
     this.matchMetric = (metric: string) => {
         metric = metric || "";
@@ -380,15 +394,20 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         const lookbackStartSecs = Math.floor((new Date().getTime() - queryKeyLookbackMillis) / 1000);
 
         const request = {
-            queries: [{
-                query, name: "queryKeyLookup",
-            }], start: lookbackStartSecs,
+            queries: [
+            {
+                query,
+                name: "queryKeyLookup"
+            },
+           ],
+           start: lookbackStartSecs,
+           noHostTags: true,
         };
 
         const hostTagsFilter = includeHostTags ? "" : "?noHostTags=true";
 
         const reqConfig = this.baseRequestConfig("GET", "chart/api/keys" + hostTagsFilter, {
-            request,
+            request: JSON.stringify(request),
         });
 
         return this.backendSrv.datasourceRequest(reqConfig);
