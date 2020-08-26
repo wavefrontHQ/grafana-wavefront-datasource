@@ -8,8 +8,8 @@ System.register([], function (exports_1, context_1) {
         }
         return t;
     };
-    var __moduleName = context_1 && context_1.id;
     var CHROME_RANDOM_CANCEL_THRESHOLD, BackendSrvCancelledRetriesDecorator;
+    var __moduleName = context_1 && context_1.id;
     return {
         setters: [],
         execute: function () {

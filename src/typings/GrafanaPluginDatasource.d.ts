@@ -82,3 +82,12 @@ interface IAnnotationResponse {
     text: string;
     tags: string;
 }
+
+interface DataQuery {
+  refId: string;
+  hide?: boolean;
+  key?: string;
+  datasource?: string | null;
+  metric?: any;
+  query: string;
+}

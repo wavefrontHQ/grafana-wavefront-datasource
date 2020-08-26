@@ -1,5 +1,6 @@
 System.register(["lodash"], function (exports_1, context_1) {
     "use strict";
+    var lodash_1, index, categories, functions;
     var __moduleName = context_1 && context_1.id;
     function addFunction(definition) {
         definition.parameters = definition.parameters || [];
@@ -9,7 +10,6 @@ System.register(["lodash"], function (exports_1, context_1) {
         }
         index[definition.name] = definition;
     }
-    var lodash_1, index, categories, functions;
     return {
         setters: [
             function (lodash_1_1) {

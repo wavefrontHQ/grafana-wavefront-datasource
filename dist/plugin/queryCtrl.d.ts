@@ -15,10 +15,10 @@ export declare class WavefrontQueryCtrl extends QueryCtrl {
     updateRawQueryCursor(keyUp: any): void;
     addTag(): void;
     addParenthesis(index: any): void;
-    private fixTags();
-    private findNthLeftAtom(index, n);
-    private findNthRightAtom(index, n);
-    private findMatchingParenthesis(index);
+    private fixTags;
+    private findNthLeftAtom;
+    private findNthRightAtom;
+    private findMatchingParenthesis;
     expandParenthesis(index: any): void;
     narrowParenthesis(index: any): void;
     canExpand(index: any): boolean;

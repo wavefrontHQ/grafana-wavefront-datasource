@@ -1,5 +1,6 @@
 System.register(["app/core/utils/kbn", "lodash"], function (exports_1, context_1) {
     "use strict";
+    var kbn_1, lodash_1;
     var __moduleName = context_1 && context_1.id;
     function dateToEpochSeconds(date) {
         return Math.floor(date.valueOf() / 1000);
@@ -107,7 +108,6 @@ System.register(["app/core/utils/kbn", "lodash"], function (exports_1, context_1
         }
     }
     exports_1("logResult", logResult);
-    var kbn_1, lodash_1;
     return {
         setters: [
             function (kbn_1_1) {
