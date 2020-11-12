@@ -1,6 +1,6 @@
 # Wavefront Datasource Plugin for Grafana
 
-This plugin enables [Wavefront](https://www.wavefront.com) as a Grafana datasource. It works on both Grafana v6 and v7.
+This plugin enables [Wavefront](https://www.wavefront.com) as a Grafana datasource supporting Grafana v6.
 
 ## Development
 - `git checkout`
