@@ -404,10 +404,11 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
            noHostTags: true,
         };
 
-        const hostTagsFilter = includeHostTags ? "" : "?noHostTags=true";
+        const hostTagsFilter = includeHostTags ? "false" : "true";
 
-        const reqConfig = this.baseRequestConfig("GET", "chart/api/keys" + hostTagsFilter, {
+        const reqConfig = this.baseRequestConfig("GET", "chart/api/keys", {
             request: JSON.stringify(request),
+            noHostTags: hostTagsFilter
         });
 
         return this.backendSrv.datasourceRequest(reqConfig);
