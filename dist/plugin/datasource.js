@@ -327,9 +327,10 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                 start: lookbackStartSecs,
                 noHostTags: true,
             };
-            var hostTagsFilter = includeHostTags ? "" : "?noHostTags=true";
-            var reqConfig = _this.baseRequestConfig("GET", "chart/api/keys" + hostTagsFilter, {
+            var hostTagsFilter = includeHostTags ? "false" : "true";
+            var reqConfig = _this.baseRequestConfig("GET", "chart/api/keys", {
                 request: JSON.stringify(request),
+                noHostTags: hostTagsFilter
             });
             return _this.backendSrv.datasourceRequest(reqConfig);
         };
