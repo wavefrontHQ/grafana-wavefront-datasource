@@ -5,6 +5,8 @@ import angular from "angular";
 import BackendSrvCancelledRetriesDecorator from './backendSrvCanelledRetriesDecorator';
 
 const queryKeyLookbackMillis = 7 * 24 * 60 * 60 * 1000;
+const CSP_API_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize";
+const CSP_OAUTH_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/authorize";
 
 export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSrv) {
     this.url = sanitizeUrl(instanceSettings.url);
@@ -25,11 +27,29 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
 
     if (instanceSettings.jsonData.wavefrontToken) {
         this.requestConfigProto.headers["X-AUTH-TOKEN"] = instanceSettings.jsonData.wavefrontToken;
+    } else if (instanceSettings.jsonData.cspAPIToken) {
+        try {
+            fetch(CSP_API_TOKEN_URL, {
+                method: "POST",
+                body: JSON.stringify({
+                    api_token: instanceSettings.jsonData.cspAPIToken,
+                }),
+                headers: {
+                    "Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+                }
+            })
+            .then((response) => response.json())
+            .then((json) => console.log(json));
+        } catch(e) {
+            console.error(e);
+        }
     } else {
         this.requestConfigProto.withCredentials = true;
     }
 
     const getUserString = () => {
+        console.log("-------getUserString----");
+
         let result = "";
         const span = $("span[class='dashboard-title ng-binding']");
 
@@ -54,15 +74,23 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     const userString = getUserString();
 
     this.query = (options: IGrafanaPluginDataSourceQueryOptions): angular.IPromise<any> => {
+        console.log("-------query----");
+
         // Query Window
         const startSecs = dateToEpochSeconds(options.range.from);
-        const endSecs = dateToEpochSeconds(options.range.to);
-        const intervalSecs = intervalToSeconds(options.interval);
-        const numPoints = Math.floor(Math.min(options.maxDataPoints, Math.floor((endSecs - startSecs) / intervalSecs))) || 4000;
 
+        const endSecs = dateToEpochSeconds(options.range.to);
+        console.log("********endSecs", endSecs);
+        console.log("********options.interval", options.interval);
+        const intervalSecs = intervalToSeconds(options.interval);
+        console.log("********intervalSecs", intervalSecs);
+        console.log("*********options.maxDataPoints", options.maxDataPoints);
+        const numPoints = Math.floor(Math.min(options.maxDataPoints, Math.floor((endSecs - startSecs) / intervalSecs))) || 4000;
+        console.log("********numPoints", numPoints);
         const baseEvent = {
             autoEvents: false, e: endSecs, i: true, listMode: false, n: userString, p: numPoints, s: startSecs, strict: true,
         };
+        console.log("********baseEvent", baseEvent);
 
         // Create queries for each target and determine active count
         const reqs = options.targets.map((target) => {
@@ -109,6 +137,9 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
             });
         }, this);
 
+        console.log("********reqs", reqs);
+        console.log("********q", this.q);
+
         return this.q.all(reqs).then((results) => {
             var resultSeries = _.flatten(results);
             var filteredSeries = _.filter(resultSeries, function (d) { return (d as any).datapoints.length > 0; });
@@ -117,6 +148,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.testDatasource = () => {
+        console.log("-------testDatasource----");
+
         return this.requestAutocomplete("grafanaDatasourceTest").then((result) => {
             return {
                 message: "Successfully connected to Wavefront! " + "(" + result.status + ")", status: "success", title: "Success",
@@ -128,6 +161,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
 
     this.annotationQuery = (options: IGrafanaPluginDataSourceAnnotationOptions) => {
         // Query Window
+        console.log("------annotationQuery----");
         const startSecs = dateToEpochSeconds(options.range.from);
         const endSecs = dateToEpochSeconds(options.range.to);
 
@@ -159,6 +193,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.metricFindQuery = (options: any) => {
+        console.log("-------metricFindQuery----");
+
         const target = typeof (options) === "string" ? options : options.target;
 
         const boundedQuery = this.templateSrv.replace(target);
@@ -228,6 +264,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchQuery = (query: string, position: number) => {
+        console.log("-------matchQuery----");
+
         query = query || "";
         const boundedQuery = this.templateSrv.replace(query);
 
@@ -239,6 +277,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.interpolateVariablesInQueries = (queries: DataQuery[]): DataQuery[] => {
+        console.log("-------interpolateVariablesInQueries----");
+
       if (queries && queries.length > 0) {
         return queries.map(query => {
           return {
@@ -251,6 +291,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     }
 
     this.matchMetric = (metric: string) => {
+        console.log("-------matchMetric----");
+
         metric = metric || "";
 
         const metricQuery = "ts(" + metric.trim();
@@ -263,12 +305,16 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchMetricTS = (query: string) => {
+        console.log("-------matchMetricTS----");
+
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             return result.data.metrics || [];
         }, (result) => []);
     };
 
     this.matchSource = (metric: string, host: string, scopedVars: any) => {
+        console.log("-------matchSource----");
+
         let query = "ts(\"" + stripQuotesAndTrim(metric) + "\", source=\"" + sanitizePartial(host) + "\")";
         query = this.templateSrv.replace(query, scopedVars);
         
@@ -278,12 +324,16 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchSourceTS = (query: string) => {
+        console.log("-------matchSourceTS----");
+
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             return result.data.hosts || [];
         }, (result) => []);
     };
 
     this.matchSourceTag = (partialName: any) => {
+        console.log("-------matchSourceTag----");
+
         partialName = partialName || "";
         partialName = partialName.toLowerCase();
 
@@ -300,18 +350,24 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchSourceTagTS = (query: string) => {
+        console.log("-------matchSourceTagTS----");
+
         return this.requestQueryKeysLookup(query.trim(), true).then((result) => {
             return result.data.hostTags || [];
         }, (result) => []);
     };
 
     this.matchMatchingSourceTagTS = (query: string) => {
+        console.log("-------matchMatchingSourceTagTS----");
+
         return this.requestQueryKeysLookup(query.trim(), true).then((result) => {
             return result.data.matchingHostTags || [];
         }, (result) => []);
     };
 
     this.matchPointTag = (partialTag: any, target: any, scopedVars: any) => {
+        console.log("-------matchPointTag----");
+
         partialTag = partialTag || "";
         partialTag = partialTag.toLowerCase();
         if (partialTag === "*") {
@@ -339,6 +395,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchPointTagTS = (query: string) => {
+        console.log("-------matchPointTagTS----");
+
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             // Generate all Point tags for the query
             const allTags = {};
@@ -350,6 +408,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchPointTagValue = (tag: any, partialValue: any, target: any, scopedVars: any) => {
+        console.log("-------matchPointTagValue----");
+        
         // Don't try to autocomplete if the corresponding tag name is empty
         if (!tag) {
             return [];
@@ -378,6 +438,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchPointTagValueTS = (tag: string, query: string) => {
+        console.log("-------matchPointTagValueTS----");
+
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             // Generate all Point tag values under the tag for the query
             const allValues = {};
@@ -391,6 +453,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.requestQueryKeysLookup = (query, includeHostTags?) => {
+        console.log("-------requestQueryKeysLookup----");
+
         const lookbackStartSecs = Math.floor((new Date().getTime() - queryKeyLookbackMillis) / 1000);
 
         const request = {
@@ -415,6 +479,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.makeQuery = (target, scopedVars?, ignoreFunctions?, ...args: any[]) => {
+        console.log("-------makeQuery----");
+
         let query;
 
         if (target.textEditor) {
@@ -429,6 +495,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.buildQuery = (target, ignoreFunctions?, ...args: any[]) => {
+        console.log("-------buildQuery----");
+
         if (!target.metric) {
             return "";
         }
@@ -461,6 +529,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.buildFilterString = (tags) => {
+        console.log("-------buildFilterString----");
+
         let result = "";
         _.each(tags, (component) => {
             switch (component.type) {
@@ -502,7 +572,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
      */
     this.requestAutocomplete = (expression, position?) => {
         let pos = position;
-
+        console.log("-------requestAutocomplete----");
         // default is to autocomplete the last symbol
         if (!pos && pos !== 0) {
             pos = expression.length;

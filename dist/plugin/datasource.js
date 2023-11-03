@@ -8,7 +8,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         }
         return t;
     };
-    var lodash_1, functions_1, helpers_1, backendSrvCanelledRetriesDecorator_1, queryKeyLookbackMillis;
+    var lodash_1, functions_1, helpers_1, backendSrvCanelledRetriesDecorator_1, queryKeyLookbackMillis, CSP_API_TOKEN_URL, CSP_OAUTH_TOKEN_URL;
     var __moduleName = context_1 && context_1.id;
     function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSrv) {
         var _this = this;
@@ -28,10 +28,29 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         if (instanceSettings.jsonData.wavefrontToken) {
             this.requestConfigProto.headers["X-AUTH-TOKEN"] = instanceSettings.jsonData.wavefrontToken;
         }
+        else if (instanceSettings.jsonData.cspAPIToken) {
+            try {
+                fetch(CSP_API_TOKEN_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        api_token: instanceSettings.jsonData.cspAPIToken,
+                    }),
+                    headers: {
+                        "Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+                    }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (json) { return console.log(json); });
+            }
+            catch (e) {
+                console.error(e);
+            }
+        }
         else {
             this.requestConfigProto.withCredentials = true;
         }
         var getUserString = function () {
+            console.log("-------getUserString----");
             var result = "";
             var span = $("span[class='dashboard-title ng-binding']");
             if (window && window.grafanaBootData && window.grafanaBootData.user) {
@@ -53,13 +72,20 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         };
         var userString = getUserString();
         this.query = function (options) {
+            console.log("-------query----");
             var startSecs = helpers_1.dateToEpochSeconds(options.range.from);
             var endSecs = helpers_1.dateToEpochSeconds(options.range.to);
+            console.log("********endSecs", endSecs);
+            console.log("********options.interval", options.interval);
             var intervalSecs = helpers_1.intervalToSeconds(options.interval);
+            console.log("********intervalSecs", intervalSecs);
+            console.log("*********options.maxDataPoints", options.maxDataPoints);
             var numPoints = Math.floor(Math.min(options.maxDataPoints, Math.floor((endSecs - startSecs) / intervalSecs))) || 4000;
+            console.log("********numPoints", numPoints);
             var baseEvent = {
                 autoEvents: false, e: endSecs, i: true, listMode: false, n: userString, p: numPoints, s: startSecs, strict: true,
             };
+            console.log("********baseEvent", baseEvent);
             var reqs = options.targets.map(function (target) {
                 if (target.hide) {
                     return _this.q.when([]);
@@ -94,6 +120,8 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
                     return [];
                 });
             }, _this);
+            console.log("********reqs", reqs);
+            console.log("********q", _this.q);
             return _this.q.all(reqs).then(function (results) {
                 var resultSeries = lodash_1.default.flatten(results);
                 var filteredSeries = lodash_1.default.filter(resultSeries, function (d) { return d.datapoints.length > 0; });
@@ -101,6 +129,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             });
         };
         this.testDatasource = function () {
+            console.log("-------testDatasource----");
             return _this.requestAutocomplete("grafanaDatasourceTest").then(function (result) {
                 return {
                     message: "Successfully connected to Wavefront! " + "(" + result.status + ")", status: "success", title: "Success",
@@ -110,6 +139,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             }); });
         };
         this.annotationQuery = function (options) {
+            console.log("------annotationQuery----");
             var startSecs = helpers_1.dateToEpochSeconds(options.range.from);
             var endSecs = helpers_1.dateToEpochSeconds(options.range.to);
             var reqConfig = _this.baseRequestConfig("GET", "api/v2/chart/api", {
@@ -138,6 +168,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             });
         };
         this.metricFindQuery = function (options) {
+            console.log("-------metricFindQuery----");
             var target = typeof (options) === "string" ? options : options.target;
             var boundedQuery = _this.templateSrv.replace(target);
             if (target === "") {
@@ -189,6 +220,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             });
         };
         this.matchQuery = function (query, position) {
+            console.log("-------matchQuery----");
             query = query || "";
             var boundedQuery = _this.templateSrv.replace(query);
             return _this.requestAutocomplete(boundedQuery, position).then(function (result) {
@@ -198,6 +230,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             }, function (result) { return []; });
         };
         this.interpolateVariablesInQueries = function (queries) {
+            console.log("-------interpolateVariablesInQueries----");
             if (queries && queries.length > 0) {
                 return queries.map(function (query) {
                     return __assign({}, query, { query: _this.templateSrv.replace(query.query) });
@@ -206,6 +239,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             return queries;
         };
         this.matchMetric = function (metric) {
+            console.log("-------matchMetric----");
             metric = metric || "";
             var metricQuery = "ts(" + metric.trim();
             return _this.requestAutocomplete(metricQuery).then(function (result) {
@@ -215,11 +249,13 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             }, function (result) { return []; });
         };
         this.matchMetricTS = function (query) {
+            console.log("-------matchMetricTS----");
             return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
                 return result.data.metrics || [];
             }, function (result) { return []; });
         };
         this.matchSource = function (metric, host, scopedVars) {
+            console.log("-------matchSource----");
             var query = "ts(\"" + helpers_1.stripQuotesAndTrim(metric) + "\", source=\"" + helpers_1.sanitizePartial(host) + "\")";
             query = _this.templateSrv.replace(query, scopedVars);
             return _this.requestQueryKeysLookup(query).then(function (result) {
@@ -227,11 +263,13 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             }, function (result) { return []; });
         };
         this.matchSourceTS = function (query) {
+            console.log("-------matchSourceTS----");
             return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
                 return result.data.hosts || [];
             }, function (result) { return []; });
         };
         this.matchSourceTag = function (partialName) {
+            console.log("-------matchSourceTag----");
             partialName = partialName || "";
             partialName = partialName.toLowerCase();
             var reqConfig = _this.baseRequestConfig("GET", "api/manage/source");
@@ -245,16 +283,19 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             }, function (result) { return []; });
         };
         this.matchSourceTagTS = function (query) {
+            console.log("-------matchSourceTagTS----");
             return _this.requestQueryKeysLookup(query.trim(), true).then(function (result) {
                 return result.data.hostTags || [];
             }, function (result) { return []; });
         };
         this.matchMatchingSourceTagTS = function (query) {
+            console.log("-------matchMatchingSourceTagTS----");
             return _this.requestQueryKeysLookup(query.trim(), true).then(function (result) {
                 return result.data.matchingHostTags || [];
             }, function (result) { return []; });
         };
         this.matchPointTag = function (partialTag, target, scopedVars) {
+            console.log("-------matchPointTag----");
             partialTag = partialTag || "";
             partialTag = partialTag.toLowerCase();
             if (partialTag === "*") {
@@ -275,6 +316,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             }, function (result) { return []; });
         };
         this.matchPointTagTS = function (query) {
+            console.log("-------matchPointTagTS----");
             return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
                 var allTags = {};
                 lodash_1.default.forEach(result.data.queryKeys, function (qk) {
@@ -284,6 +326,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             }, function (result) { return []; });
         };
         this.matchPointTagValue = function (tag, partialValue, target, scopedVars) {
+            console.log("-------matchPointTagValue----");
             if (!tag) {
                 return [];
             }
@@ -305,6 +348,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             }, function (result) { return []; });
         };
         this.matchPointTagValueTS = function (tag, query) {
+            console.log("-------matchPointTagValueTS----");
             return _this.requestQueryKeysLookup(query.trim()).then(function (result) {
                 var allValues = {};
                 lodash_1.default.forEach(result.data.queryKeys, function (qk) {
@@ -316,6 +360,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             }, function (result) { return []; });
         };
         this.requestQueryKeysLookup = function (query, includeHostTags) {
+            console.log("-------requestQueryKeysLookup----");
             var lookbackStartSecs = Math.floor((new Date().getTime() - queryKeyLookbackMillis) / 1000);
             var request = {
                 queries: [
@@ -339,6 +384,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             for (var _i = 3; _i < arguments.length; _i++) {
                 args[_i - 3] = arguments[_i];
             }
+            console.log("-------makeQuery----");
             var query;
             if (target.textEditor) {
                 query = target.query;
@@ -354,6 +400,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             for (var _i = 2; _i < arguments.length; _i++) {
                 args[_i - 2] = arguments[_i];
             }
+            console.log("-------buildQuery----");
             if (!target.metric) {
                 return "";
             }
@@ -376,6 +423,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             return query;
         };
         this.buildFilterString = function (tags) {
+            console.log("-------buildFilterString----");
             var result = "";
             lodash_1.default.each(tags, function (component) {
                 switch (component.type) {
@@ -399,6 +447,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         };
         this.requestAutocomplete = function (expression, position) {
             var pos = position;
+            console.log("-------requestAutocomplete----");
             if (!pos && pos !== 0) {
                 pos = expression.length;
             }
@@ -426,6 +475,8 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         ],
         execute: function () {
             queryKeyLookbackMillis = 7 * 24 * 60 * 60 * 1000;
+            CSP_API_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize";
+            CSP_OAUTH_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/authorize";
         }
     };
 });
