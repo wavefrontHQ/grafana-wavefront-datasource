@@ -8,6 +8,10 @@ const queryKeyLookbackMillis = 7 * 24 * 60 * 60 * 1000;
 const CSP_API_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize";
 const CSP_OAUTH_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/authorize";
 
+const appSecret = ""
+
+
+
 export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSrv) {
     this.url = sanitizeUrl(instanceSettings.url);
 
@@ -17,6 +21,9 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     this.backendSrv = new BackendSrvCancelledRetriesDecorator(backendSrv, $q);
     this.templateSrv = templateSrv;
     this.defaultRequestTimeoutSecs = 15;
+    const appId = instanceSettings.jsonData.cspOAuthClientId
+    const appSecret = instanceSettings.jsonData.cspOAuthClientSecret
+    const credentials = `Basic ${Buffer.from(`${appId}:${appSecret}`).toString('base64')}`;
 
     this.requestConfigProto = {
         headers: {
@@ -43,7 +50,23 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         } catch(e) {
             console.error(e);
         }
-    } else {
+    } else if (instanceSettings.jsonData.cspOAuthClientId && instanceSettings.jsonData.cspOAuthClientSecret) {
+        try {
+            fetch(CSP_OAUTH_TOKEN_URL, {
+                method: "POST",
+                body: JSON.stringify({
+                    grant_type: "client_credentials",
+                }),
+                headers: {
+                    "Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+                }
+            })
+            .then((response) => response.json())
+            .then((json) => console.log(json));
+        } catch(e) {
+            console.error(e);
+        }
+    }else {
         this.requestConfigProto.withCredentials = true;
     }
 
