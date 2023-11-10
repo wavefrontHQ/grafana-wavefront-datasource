@@ -1,0 +1,280 @@
+<query-editor-row query-ctrl="ctrl" can-collapse="false" has-text-edit-mode="true">
+
+    <!-- Text Editor mode -->
+    <div class="gf-form" ng-show="ctrl.target.textEditor">
+        <!-- Text Input -->
+        <input type="text" class="gf-form-input" style="flex-grow: 1"
+               ng-model="ctrl.target.query" ng-blur="ctrl.refresh()"
+               bs-typeahead="ctrl.autoCompleteQuery"
+               ng-keyup="ctrl.updateRawQueryCursor($event)"
+               spellcheck="false" placeholder="ts() query"/>
+
+        <!-- Errors and Warnings -->
+        <div class="gf-form-inline" ng-show="ctrl.target.errors.query || ctrl.target.warnings.query">
+            <a class="gf-form-label"
+               bs-tooltip="ctrl.getErrorMessage()"
+               ng-style="ctrl.target.errors.query && {'color': 'red'} || {'color': 'orange'}"
+               ng-show="ctrl.target.errors.query || ctrl.target.warnings.query">
+                <i class="fa fa-warning"></i>
+            </a>
+        </div>
+
+        <!-- Aliases Button -->
+        <div class="gf-form-inline">
+            <a class="gf-form-label"
+               ng-click="showAliases=!showAliases"
+               ng-style="showAliases && {'color': 'orange'} || {}">
+                (.*)
+            </a>
+        </div>
+    </div>
+
+    <!-- Standard mode -->
+    <div ng-hide="ctrl.target.textEditor">
+
+        <!-- Metric + Functions -->
+        <div class="gf-form-inline">
+
+            <!-- Metric -->
+            <div class="gf-form">
+                <input type="text" class="gf-form-input width-30"
+                       ng-model="ctrl.target.metric" ng-blur="ctrl.refresh()"
+                       wf-typeahead="ctrl.autoCompleteMetric"
+                       data-min-length="0" data-items="100"
+                       spellcheck="false" placeholder="metric name"/>
+            </div>
+
+            <!-- Filter Button -->
+            <div class="gf-form">
+                <label class="gf-form-label query-part">
+                    <a ng-click="showFilter=!showFilter"
+                       ng-style="ctrl.target.tags.length && {'color': 'orange'} || {}">
+                        <i class="fa fa-filter"></i>
+                    </a>
+                </label>
+            </div>
+
+            <!-- Functions -->
+            <div ng-repeat="wfFunction in ctrl.target.functions" class="gf-form">
+                <span wavefront-function-editor class="gf-form-label query-part"></span>
+            </div>
+            <div class="gf-form dropdown">
+                <span wavefront-add-function></span>
+            </div>
+
+            <!-- Spacer -->
+            <div class="gf-form gf-form--grow">
+                <div class="gf-form-label gf-form-label--grow"></div>
+            </div>
+
+            <!-- Errors and Warnings -->
+            <div class="gf-form" ng-show="ctrl.target.errors.query || ctrl.target.warnings.query">
+                <a class="gf-form-label"
+                   bs-tooltip="ctrl.getErrorMessage()"
+                   ng-style="ctrl.target.errors.query && {'color': 'red'} || {'color': 'orange'}"
+                   ng-show="ctrl.target.errors.query || ctrl.target.warnings.query">
+                    <i class="fa fa-warning"></i>
+                </a>
+            </div>
+
+            <!-- Aliases Button -->
+            <div class="gf-form">
+                <label class="gf-form-label query-part">
+                    <a ng-click="showAliases=!showAliases"
+                       ng-style="ctrl.target.regexes.length && {'color': 'orange'} || {}">
+                        (.*)
+                    </a>
+                </label>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="gf-form-inline" ng-show="showFilter && !ctrl.target.textEditor">
+
+            <!-- Filter Button -->
+            <div class="gf-form">
+                <label class="gf-form-label query-part">
+                    <a ng-click="showFilter=!showFilter"
+                       ng-style="{'color': 'orange'}">
+                        <i class="fa fa-filter"></i>
+                    </a>
+                </label>
+            </div>
+
+            <!-- Filter label/info -->
+            <div class="gf-form">
+                <label class="gf-form-label query-part">
+                    <strong>Filter</strong>
+                    <tip>You can define a filter as a combination of key-value pairs. keys can be
+                        source to filter on sources, tag to filter on source-tags or point tags.
+                        Note, that wavefront applies a left-associative ordering to the operators,
+                        so that A or B and C would be interpreted as (A or B) and C, not as A or (B
+                        and C)
+                    </tip>
+                </label>
+            </div>
+
+            <!-- Filter parts/tags -->
+            <div ng-repeat="elem in ctrl.target.tags track by $index" class="gf-form">
+                <div ng-switch on="elem.type">
+                    <div ng-switch-when="operator">
+                        <a class="gf-form-label query-part query-row-control-item"
+                           ng-click="elem.isAnd=!elem.isAnd; ctrl.refresh()"
+                           ng-style="{'color': 'orange'}">
+                            <i ng-show="elem.isAnd" class="fa fa-chevron-up"></i>
+                            <i ng-show="!elem.isAnd" class="fa fa-chevron-down"></i>
+                        </a>
+                    </div>
+                    <div ng-switch-when="parenthesis" class="dropdown">
+                        <a class="gf-form-label query-part query-row-control-item"
+                           data-toggle="dropdown"
+                           ng-style="{'color': 'orange'}">
+                            <span ng-show="elem.isOpen">(</span>
+                            <span ng-show="!elem.isOpen">)</span>
+                        </a>
+                        <ul class="dropdown-menu" role="menu">
+                            <li role="menuitem">
+                                <a ng-click="ctrl.expandParenthesis($index)"
+                                   ng-show="ctrl.canExpand($index)">
+                                    <i class="fa fa-arrow-left" ng-show="elem.isOpen"></i>
+                                    <i class="fa fa-arrow-right" ng-show="!elem.isOpen"></i>
+                                    Expand
+                                </a>
+                            </li>
+                            <li role="menuitem">
+                                <a ng-click="ctrl.narrowParenthesis($index)"
+                                   ng-show="ctrl.canNarrow($index)">
+                                    <i class="fa fa-arrow-left" ng-show="!elem.isOpen"></i>
+                                    <i class="fa fa-arrow-right" ng-show="elem.isOpen"></i>
+                                    Narrow
+                                </a>
+                            </li>
+                            <li role="menuitem">
+                                <a ng-click="ctrl.removeParenthesis($index)">
+                                    <i class="fa fa-remove"></i>
+                                    Remove
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="gf-form-label query-part query-row-control-item" ng-switch-default>
+                        <a ng-click="ctrl.addParenthesis($index)">
+                            {{elem.key}}&nbsp;=&nbsp;{{elem.value}}
+                        </a>
+                        <a ng-click="ctrl.removeTag($index)">
+                            <i class="fa fa-remove"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add new filter part/tag -->
+            <div class="gf-form dropdown" ng-hide="ctrl.addTagMode">
+                <label class="gf-form-label query-part">
+                    <a ng-click="ctrl.addTag()">
+                        <i class="fa fa-plus"></i>
+                    </a>
+                </label>
+            </div>
+            <div class="gf-form" ng-show="ctrl.addTagMode">
+                <input type="text"
+                       class="gf-form-input max-width-7"
+                       spellcheck='false'
+                       bs-typeahead="ctrl.autoCompleteTagKey"
+                       data-min-length=0 data-items=100
+                       ng-model="ctrl.target.currentTagKey"
+                       placeholder="key">
+                <input type="text"
+                       class="gf-form-input max-width-7"
+                       spellcheck='false'
+                       bs-typeahead="ctrl.autoCompleteTagValue"
+                       data-min-length=0 data-items=100
+                       ng-model="ctrl.target.currentTagValue"
+                       placeholder="value">
+                <a class="gf-form-label query-part" ng-click="ctrl.addTag()">
+                    add
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Aliases -->
+    <div class="gf-form-inline" ng-show="showAliases">
+        <!-- Aliases Button -->
+        <div class="gf-form query-row-section-header">
+            <label class="gf-form-label query-part">
+                <a ng-click="showAliases=!showAliases"
+                   ng-style="{'color': 'orange'}">
+                    (.*)
+                </a>
+            </label>
+        </div>
+
+        <!-- Aliases label/info -->
+        <div class="gf-form query-row-section-header">
+            <label class="gf-form-label query-part">
+                <strong>Alias</strong>
+                <tip>You can define a series of regex/replacement pairs that will be executed in
+                    order against this target's labels. Use $1,2,3... to reference capture
+                    groups.
+                </tip>
+            </label>
+        </div>
+
+        <div>
+            <!-- New Alias entry -->
+            <div class="gf-form">
+                <label class="gf-form-label query-part">
+                    Regex
+                </label>
+                <input type="text"
+                       class="gf-form-input query-part max-width-15"
+                       ng-model="ctrl.target.currentRegex"
+                       spellcheck="false"
+                       placeholder="regex"
+                       regex-validator
+                       data-min-length=0 data-items=100/>
+                <label class="gf-form-label query-part">
+                    Replacement
+                </label>
+                <input type="text"
+                       class="gf-form-input query-part max-width-15"
+                       ng-model="ctrl.target.currentReplacement"
+                       spellcheck="false"
+                       placeholder="replacement"
+                       data-min-length=0 data-items=100/>
+                <a class="gf-form-label query-part" ng-click="ctrl.addRegex()">
+                    <i class="fa fa-plus"></i>
+                </a>
+            </div>
+
+            <!-- Existing Aliases -->
+            <div>
+                <div class="gf-form-inline" ng-repeat="regex in ctrl.target.regexes track by $index">
+                    <div class="gf-form">
+                        <label class="gf-form-label query-part">
+                            {{regex.regex}}
+                        </label>
+                        <div class="gf-form-label query-part query-row-control-item">
+                            <i class="fa fa-arrow-right"></i>
+                        </div>
+                        <label class="gf-form-label query-part query-row-control-item">
+                            {{regex.replacement}}
+                        </label>
+                    </div>
+                    <!-- Aliases Button -->
+                    <div class="gf-form">
+                        <label class="gf-form-label query-part">
+                            <a ng-click="ctrl.removeRegex($index)">
+                                <i class="fa fa-remove"></i>
+                            </a>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</query-editor-row>
+

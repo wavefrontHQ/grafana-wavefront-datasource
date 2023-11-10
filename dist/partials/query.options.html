@@ -1,0 +1,53 @@
+<section class="grafana-metric-options gf-form-group">
+    <div class="gf-form-inline">
+
+        <!-- Max data points -->
+        <div class="gf-form max-width-15">
+            <span class="gf-form-label">Max data points</span>
+            <input type="text"
+                   class="gf-form-input"
+                   ng-model="ctrl.panelCtrl.panel.maxDataPoints"
+                   bs-tooltip="'Override max data points, automatically set to graph width in pixels'"
+                   data-placement="right"
+                   ng-model-onblur ng-change="ctrl.refresh()"
+                   spellcheck='false'
+                   placeholder="auto"/>
+        </div>
+
+        <!-- Summarization -->
+        <div class="gf-form max-width-15">
+            <span class="gf-form-label">Summarization</span>
+            <select class="gf-form-input"
+                    ng-options="item for item in ctrl.summarizations track by item"
+                    ng-model="ctrl.panelCtrl.panel.summarization"
+                    bs-tooltip="'Summarization strategy to use when bucketing points'"
+                    data-placement="right"
+                    ng-model-onblur ng-change="ctrl.refresh()">
+            </select>
+        </div>
+
+        <!-- Granularity -->
+        <div class="gf-form max-width-13">
+            <span class="gf-form-label">Granularity</span>
+            <select class="gf-form-input"
+                    ng-options="item for item in ctrl.granularities track by item"
+                    ng-model="ctrl.panelCtrl.panel.granularity"
+                    bs-tooltip="'Desired granularity of the data points'"
+                    data-placement="right"
+                    ng-model-onblur ng-change="ctrl.refresh()">
+            </select>
+        </div>
+
+        <!-- Include Obsolete -->
+        <div class="gf-form max-width-15">
+            <gf-form-switch class="gf-form"
+                            checked="ctrl.panelCtrl.panel.includeObsolete"
+                            ng-model="ctrl.panelCtrl.panel.includeObsolete"
+                            label="Include Obsolete metrics"
+                            ng-model-onblur on-change="ctrl.refresh()">
+            </gf-form-switch>
+        </div>
+    </div>
+</section>
+
+
