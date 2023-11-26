@@ -9,8 +9,10 @@ System.register([], function (exports_1, context_1) {
                 function WavefrontConfigCtrl() {
                     this.wavefrontTokenExists = false;
                     this.cspApiTokenExists = false;
+                    this.cspOAuthExists = false;
                     this.wavefrontTokenExists = (this.current.jsonData.wavefrontToken != null && this.current.jsonData.wavefrontToken !== "");
                     this.cspApiTokenExists = (this.current.jsonData.cspAPIToken != null && this.current.jsonData.cspAPIToken !== "");
+                    this.cspOAuthExists = (this.current.jsonData.cspOAuthClientId != null && this.current.jsonData.cspOAuthClientSecret !== "");
                 }
                 WavefrontConfigCtrl.prototype.resetWavefrontToken = function () {
                     this.current.jsonData.wavefrontToken = "";
@@ -19,6 +21,11 @@ System.register([], function (exports_1, context_1) {
                 WavefrontConfigCtrl.prototype.resetCspApiToken = function () {
                     this.current.jsonData.cspAPIToken = "";
                     this.cspApiTokenExists = false;
+                };
+                WavefrontConfigCtrl.prototype.resetCspOAuth = function () {
+                    this.current.jsonData.cspOAuthClientId = "";
+                    this.current.jsonData.cspOAuthClientSecret = "";
+                    this.cspOAuthExists = false;
                 };
                 WavefrontConfigCtrl.templateUrl = "partials/config.html";
                 return WavefrontConfigCtrl;

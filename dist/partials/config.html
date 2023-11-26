@@ -18,6 +18,21 @@
 
     <div class="gf-form-inline">
         <div class="gf-form">
+            <span class="gf-form-label width-10">CSP OAuth Token</span>
+        </div>
+        <div class="gf-form max-width-24">
+            <i class="gf-form-label max-width-22 text-center" ng-show="ctrl.cspOAuthExists">Configured</i>
+            <a class="btn btn-secondary gf-form-btn" style="flex-grow:1" type="submit" ng-click="ctrl.resetCspOAuth()" ng-show="ctrl.cspOAuthExists">Reset</a>
+            <input type="text" class="gf-form-input max-width-24" ng-hide="ctrl.cspOAuthExists" ng-model="ctrl.current.jsonData.cspOAuthClientId"/>
+            <input type="text" class="gf-form-input max-width-24" ng-hide="ctrl.cspOAuthExists" ng-model="ctrl.current.jsonData.cspOAuthClientSecret"/>
+            <info-popover mode="right-absolute" ng-hide="ctrl.cspOAuthExists">
+                Paste your CSP OAuth token here. You can find and manage your tokens on your profile page in the Wavefront app
+            </info-popover>
+        </div>
+    </div>
+qqq
+    <div class="gf-form-inline">
+        <div class="gf-form">
             <span class="gf-form-label width-10">CSP API Token</span>
         </div>
         <div class="gf-form max-width-24">

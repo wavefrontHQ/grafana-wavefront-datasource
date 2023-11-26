@@ -8,10 +8,6 @@ const queryKeyLookbackMillis = 7 * 24 * 60 * 60 * 1000;
 const CSP_API_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize";
 const CSP_OAUTH_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/authorize";
 
-const appSecret = ""
-
-
-
 export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSrv) {
     this.url = sanitizeUrl(instanceSettings.url);
 
@@ -23,7 +19,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     this.defaultRequestTimeoutSecs = 15;
     const appId = instanceSettings.jsonData.cspOAuthClientId
     const appSecret = instanceSettings.jsonData.cspOAuthClientSecret
-    const credentials = `Basic ${Buffer.from(`${appId}:${appSecret}`).toString('base64')}`;
+    const credentials = `Basic ${btoa(`${appId}:${appSecret}`)}`;
 
     this.requestConfigProto = {
         headers: {
@@ -39,7 +35,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
             fetch(CSP_API_TOKEN_URL, {
                 method: "POST",
                 body: JSON.stringify({
-                    api_token: instanceSettings.jsonData.cspAPIToken,
+                    "api_token": instanceSettings.jsonData.cspAPIToken,
                 }),
                 headers: {
                     "Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
@@ -50,15 +46,17 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         } catch(e) {
             console.error(e);
         }
+        this.requestConfigProto.headers["Authorization"] = "Bearer " + instanceSettings.jsonData.cspAPIToken;
     } else if (instanceSettings.jsonData.cspOAuthClientId && instanceSettings.jsonData.cspOAuthClientSecret) {
         try {
             fetch(CSP_OAUTH_TOKEN_URL, {
                 method: "POST",
                 body: JSON.stringify({
-                    grant_type: "client_credentials",
+                    "grant_type": "client_credentials",
                 }),
                 headers: {
-                    "Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+                    "Content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+                    "Authorization": credentials
                 }
             })
             .then((response) => response.json())
@@ -66,12 +64,12 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         } catch(e) {
             console.error(e);
         }
+        this.requestConfigProto.headers["Authorization"] = "Bearer " + instanceSettings.jsonData.cspAPIToken;
     }else {
         this.requestConfigProto.withCredentials = true;
     }
 
     const getUserString = () => {
-        console.log("-------getUserString----");
 
         let result = "";
         const span = $("span[class='dashboard-title ng-binding']");
@@ -97,23 +95,16 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     const userString = getUserString();
 
     this.query = (options: IGrafanaPluginDataSourceQueryOptions): angular.IPromise<any> => {
-        console.log("-------query----");
 
         // Query Window
         const startSecs = dateToEpochSeconds(options.range.from);
 
         const endSecs = dateToEpochSeconds(options.range.to);
-        console.log("********endSecs", endSecs);
-        console.log("********options.interval", options.interval);
         const intervalSecs = intervalToSeconds(options.interval);
-        console.log("********intervalSecs", intervalSecs);
-        console.log("*********options.maxDataPoints", options.maxDataPoints);
         const numPoints = Math.floor(Math.min(options.maxDataPoints, Math.floor((endSecs - startSecs) / intervalSecs))) || 4000;
-        console.log("********numPoints", numPoints);
         const baseEvent = {
             autoEvents: false, e: endSecs, i: true, listMode: false, n: userString, p: numPoints, s: startSecs, strict: true,
         };
-        console.log("********baseEvent", baseEvent);
 
         // Create queries for each target and determine active count
         const reqs = options.targets.map((target) => {
@@ -160,9 +151,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
             });
         }, this);
 
-        console.log("********reqs", reqs);
-        console.log("********q", this.q);
-
         return this.q.all(reqs).then((results) => {
             var resultSeries = _.flatten(results);
             var filteredSeries = _.filter(resultSeries, function (d) { return (d as any).datapoints.length > 0; });
@@ -171,7 +159,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.testDatasource = () => {
-        console.log("-------testDatasource----");
 
         return this.requestAutocomplete("grafanaDatasourceTest").then((result) => {
             return {
@@ -184,7 +171,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
 
     this.annotationQuery = (options: IGrafanaPluginDataSourceAnnotationOptions) => {
         // Query Window
-        console.log("------annotationQuery----");
         const startSecs = dateToEpochSeconds(options.range.from);
         const endSecs = dateToEpochSeconds(options.range.to);
 
@@ -216,7 +202,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.metricFindQuery = (options: any) => {
-        console.log("-------metricFindQuery----");
 
         const target = typeof (options) === "string" ? options : options.target;
 
@@ -287,7 +272,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchQuery = (query: string, position: number) => {
-        console.log("-------matchQuery----");
 
         query = query || "";
         const boundedQuery = this.templateSrv.replace(query);
@@ -300,7 +284,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.interpolateVariablesInQueries = (queries: DataQuery[]): DataQuery[] => {
-        console.log("-------interpolateVariablesInQueries----");
 
       if (queries && queries.length > 0) {
         return queries.map(query => {
@@ -314,7 +297,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     }
 
     this.matchMetric = (metric: string) => {
-        console.log("-------matchMetric----");
 
         metric = metric || "";
 
@@ -328,7 +310,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchMetricTS = (query: string) => {
-        console.log("-------matchMetricTS----");
 
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             return result.data.metrics || [];
@@ -336,7 +317,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchSource = (metric: string, host: string, scopedVars: any) => {
-        console.log("-------matchSource----");
 
         let query = "ts(\"" + stripQuotesAndTrim(metric) + "\", source=\"" + sanitizePartial(host) + "\")";
         query = this.templateSrv.replace(query, scopedVars);
@@ -347,7 +327,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchSourceTS = (query: string) => {
-        console.log("-------matchSourceTS----");
 
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             return result.data.hosts || [];
@@ -355,7 +334,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchSourceTag = (partialName: any) => {
-        console.log("-------matchSourceTag----");
 
         partialName = partialName || "";
         partialName = partialName.toLowerCase();
@@ -373,7 +351,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchSourceTagTS = (query: string) => {
-        console.log("-------matchSourceTagTS----");
 
         return this.requestQueryKeysLookup(query.trim(), true).then((result) => {
             return result.data.hostTags || [];
@@ -381,7 +358,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchMatchingSourceTagTS = (query: string) => {
-        console.log("-------matchMatchingSourceTagTS----");
 
         return this.requestQueryKeysLookup(query.trim(), true).then((result) => {
             return result.data.matchingHostTags || [];
@@ -389,7 +365,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchPointTag = (partialTag: any, target: any, scopedVars: any) => {
-        console.log("-------matchPointTag----");
 
         partialTag = partialTag || "";
         partialTag = partialTag.toLowerCase();
@@ -418,7 +393,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchPointTagTS = (query: string) => {
-        console.log("-------matchPointTagTS----");
 
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             // Generate all Point tags for the query
@@ -431,7 +405,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchPointTagValue = (tag: any, partialValue: any, target: any, scopedVars: any) => {
-        console.log("-------matchPointTagValue----");
         
         // Don't try to autocomplete if the corresponding tag name is empty
         if (!tag) {
@@ -461,7 +434,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchPointTagValueTS = (tag: string, query: string) => {
-        console.log("-------matchPointTagValueTS----");
 
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             // Generate all Point tag values under the tag for the query
@@ -476,7 +448,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.requestQueryKeysLookup = (query, includeHostTags?) => {
-        console.log("-------requestQueryKeysLookup----");
 
         const lookbackStartSecs = Math.floor((new Date().getTime() - queryKeyLookbackMillis) / 1000);
 
@@ -502,7 +473,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.makeQuery = (target, scopedVars?, ignoreFunctions?, ...args: any[]) => {
-        console.log("-------makeQuery----");
 
         let query;
 
@@ -518,7 +488,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.buildQuery = (target, ignoreFunctions?, ...args: any[]) => {
-        console.log("-------buildQuery----");
 
         if (!target.metric) {
             return "";
@@ -552,7 +521,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.buildFilterString = (tags) => {
-        console.log("-------buildFilterString----");
 
         let result = "";
         _.each(tags, (component) => {
@@ -595,7 +563,6 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
      */
     this.requestAutocomplete = (expression, position?) => {
         let pos = position;
-        console.log("-------requestAutocomplete----");
         // default is to autocomplete the last symbol
         if (!pos && pos !== 0) {
             pos = expression.length;
@@ -607,5 +574,52 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
 
         return this.backendSrv.datasourceRequest(reqConfig);
     };
+
+
+    function refreshToken() {
+        if (instanceSettings.jsonData.cspAPIToken) {
+            try {
+                fetch(CSP_API_TOKEN_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        "api_token": instanceSettings.jsonData.cspAPIToken,
+                    }),
+                    headers: {
+                        "Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+                    }
+                })
+                .then((response) => response.json())
+                .then((json) => console.log(json));
+            } catch(e) {
+                console.error(e);
+            }
+            this.requestConfigProto.headers["Authorization"] = "Bearer " + instanceSettings.jsonData.cspAPIToken;
+        } else if (instanceSettings.jsonData.cspOAuthClientId && instanceSettings.jsonData.cspOAuthClientSecret) {
+            try {
+                fetch(CSP_OAUTH_TOKEN_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        "grant_type": "client_credentials",
+                    }),
+                    headers: {
+                        "Content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        "Authorization": credentials
+                    }
+                })
+                .then((response) => response.json())
+                .then((json) => console.log(json));
+            } catch(e) {
+                console.error(e);
+            }
+            this.requestConfigProto.headers["Authorization"] = "Bearer " + instanceSettings.jsonData.cspAPIToken;
+        }
+        console.log("Refreshed token!");
+      }
+      
+      // Execute the function initially
+      refreshToken();
+      
+      // Execute the function every 25 minutes (25 * 60 * 1000 milliseconds)
+      const interval = setInterval(refreshToken, 25 * 60 * 1000);
 
 }
