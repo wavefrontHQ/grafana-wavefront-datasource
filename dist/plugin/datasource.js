@@ -8,7 +8,7 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         }
         return t;
     };
-    var lodash_1, functions_1, helpers_1, backendSrvCanelledRetriesDecorator_1, queryKeyLookbackMillis;
+    var lodash_1, functions_1, helpers_1, backendSrvCanelledRetriesDecorator_1, queryKeyLookbackMillis, CSP_API_TOKEN_URL, CSP_OAUTH_TOKEN_URL;
     var __moduleName = context_1 && context_1.id;
     function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSrv) {
         var _this = this;
@@ -19,6 +19,9 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         this.backendSrv = new backendSrvCanelledRetriesDecorator_1.default(backendSrv, $q);
         this.templateSrv = templateSrv;
         this.defaultRequestTimeoutSecs = 15;
+        var appId = instanceSettings.jsonData.cspOAuthClientId;
+        var appSecret = instanceSettings.jsonData.cspOAuthClientSecret;
+        var credentials = "Basic " + btoa(appId + ":" + appSecret);
         this.requestConfigProto = {
             headers: {
                 "Content-Type": "application/json",
@@ -27,6 +30,45 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         };
         if (instanceSettings.jsonData.wavefrontToken) {
             this.requestConfigProto.headers["X-AUTH-TOKEN"] = instanceSettings.jsonData.wavefrontToken;
+        }
+        else if (instanceSettings.jsonData.cspAPIToken) {
+            try {
+                fetch(CSP_API_TOKEN_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        "api_token": instanceSettings.jsonData.cspAPIToken,
+                    }),
+                    headers: {
+                        "Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+                    }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (json) { return console.log(json); });
+            }
+            catch (e) {
+                console.error(e);
+            }
+            this.requestConfigProto.headers["Authorization"] = "Bearer " + instanceSettings.jsonData.cspAPIToken;
+        }
+        else if (instanceSettings.jsonData.cspOAuthClientId && instanceSettings.jsonData.cspOAuthClientSecret) {
+            try {
+                fetch(CSP_OAUTH_TOKEN_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        "grant_type": "client_credentials",
+                    }),
+                    headers: {
+                        "Content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        "Authorization": credentials
+                    }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (json) { return console.log(json); });
+            }
+            catch (e) {
+                console.error(e);
+            }
+            this.requestConfigProto.headers["Authorization"] = "Bearer " + instanceSettings.jsonData.cspAPIToken;
         }
         else {
             this.requestConfigProto.withCredentials = true;
@@ -407,6 +449,50 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
             });
             return _this.backendSrv.datasourceRequest(reqConfig);
         };
+        function refreshToken() {
+            if (instanceSettings.jsonData.cspAPIToken) {
+                try {
+                    fetch(CSP_API_TOKEN_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            "api_token": instanceSettings.jsonData.cspAPIToken,
+                        }),
+                        headers: {
+                            "Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+                        }
+                    })
+                        .then(function (response) { return response.json(); })
+                        .then(function (json) { return console.log(json); });
+                }
+                catch (e) {
+                    console.error(e);
+                }
+                this.requestConfigProto.headers["Authorization"] = "Bearer " + instanceSettings.jsonData.cspAPIToken;
+            }
+            else if (instanceSettings.jsonData.cspOAuthClientId && instanceSettings.jsonData.cspOAuthClientSecret) {
+                try {
+                    fetch(CSP_OAUTH_TOKEN_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            "grant_type": "client_credentials",
+                        }),
+                        headers: {
+                            "Content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+                            "Authorization": credentials
+                        }
+                    })
+                        .then(function (response) { return response.json(); })
+                        .then(function (json) { return console.log(json); });
+                }
+                catch (e) {
+                    console.error(e);
+                }
+                this.requestConfigProto.headers["Authorization"] = "Bearer " + instanceSettings.jsonData.cspAPIToken;
+            }
+            console.log("Refreshed token!");
+        }
+        refreshToken();
+        var interval = setInterval(refreshToken, 25 * 60 * 1000);
     }
     exports_1("WavefrontDatasource", WavefrontDatasource);
     return {
@@ -426,6 +512,8 @@ System.register(["lodash", "./functions", "./helpers", "./backendSrvCanelledRetr
         ],
         execute: function () {
             queryKeyLookbackMillis = 7 * 24 * 60 * 60 * 1000;
+            CSP_API_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize";
+            CSP_OAUTH_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/authorize";
         }
     };
 });
