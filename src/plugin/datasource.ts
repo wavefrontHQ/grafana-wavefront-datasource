@@ -5,6 +5,8 @@ import angular from "angular";
 import BackendSrvCancelledRetriesDecorator from './backendSrvCanelledRetriesDecorator';
 
 const queryKeyLookbackMillis = 7 * 24 * 60 * 60 * 1000;
+const CSP_API_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize";
+const CSP_OAUTH_TOKEN_URL = "https://console.cloud.vmware.com/csp/gateway/am/api/auth/token";
 
 export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSrv) {
     this.url = sanitizeUrl(instanceSettings.url);
@@ -16,20 +18,50 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     this.templateSrv = templateSrv;
     this.defaultRequestTimeoutSecs = 15;
 
-    this.requestConfigProto = {
+    let requestConfigProto = {
         headers: {
             "Content-Type": "application/json",
+            "X-AUTH-TOKEN": ""
         },
         timeout: (instanceSettings.jsonData.timeoutSecs || this.defaultRequestTimeoutSecs) * 1000,
     };
 
-    if (instanceSettings.jsonData.wavefrontToken) {
-        this.requestConfigProto.headers["X-AUTH-TOKEN"] = instanceSettings.jsonData.wavefrontToken;
-    } else {
-        this.requestConfigProto.withCredentials = true;
-    }
+    this.getAuthToken = async() => {
+        if (instanceSettings.jsonData.wavefrontToken) {
+            requestConfigProto.headers["X-AUTH-TOKEN"] = instanceSettings.jsonData.wavefrontToken;
+        } else if (instanceSettings.jsonData.cspAPIToken) {
+            const response = await fetch(CSP_API_TOKEN_URL, {
+                method: "POST",
+                body: "refresh_token=" + instanceSettings.jsonData.cspAPIToken,
+                headers: {
+                    "Content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+                }
+            })
+            const data = await response.json()
+            requestConfigProto.headers["X-AUTH-TOKEN"]=data["access_token"];
+        } else if (instanceSettings.jsonData.cspOAuthClientId && instanceSettings.jsonData.cspOAuthClientSecret) {
+            const credentials = `Basic ${btoa(`${instanceSettings.jsonData.cspOAuthClientId}:${instanceSettings.jsonData.cspOAuthClientSecret}`)}`;
+            const response = await fetch(CSP_OAUTH_TOKEN_URL, {
+                method: "POST",
+                body: "grant_type=client_credentials",
+                headers: {
+                    "Content-type": "application/x-www-form-urlencoded",
+                    "Authorization": credentials
+                }
+            });
+            const data = await response.json()
+            requestConfigProto.headers["X-AUTH-TOKEN"]=data["access_token"];
+        }
+        else {
+            this.requestConfigProto.withCredentials = true;
+        }
+        return NaN
+    };
+
+    const x = this.getAuthToken()
 
     const getUserString = () => {
+
         let result = "";
         const span = $("span[class='dashboard-title ng-binding']");
 
@@ -53,13 +85,13 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
     const userString = getUserString();
 
-    this.query = (options: IGrafanaPluginDataSourceQueryOptions): angular.IPromise<any> => {
+    this.query = (options: IGrafanaPluginDataSourceQueryOptions): Promise<angular.IPromise<any>> => {
         // Query Window
         const startSecs = dateToEpochSeconds(options.range.from);
+
         const endSecs = dateToEpochSeconds(options.range.to);
         const intervalSecs = intervalToSeconds(options.interval);
         const numPoints = Math.floor(Math.min(options.maxDataPoints, Math.floor((endSecs - startSecs) / intervalSecs))) || 4000;
-
         const baseEvent = {
             autoEvents: false, e: endSecs, i: true, listMode: false, n: userString, p: numPoints, s: startSecs, strict: true,
         };
@@ -116,7 +148,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
         });
     };
 
-    this.testDatasource = () => {
+    this.testDatasource = async() => {
+        await this.getAuthToken()
         return this.requestAutocomplete("grafanaDatasourceTest").then((result) => {
             return {
                 message: "Successfully connected to Wavefront! " + "(" + result.status + ")", status: "success", title: "Success",
@@ -159,6 +192,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.metricFindQuery = (options: any) => {
+
         const target = typeof (options) === "string" ? options : options.target;
 
         const boundedQuery = this.templateSrv.replace(target);
@@ -228,6 +262,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchQuery = (query: string, position: number) => {
+
         query = query || "";
         const boundedQuery = this.templateSrv.replace(query);
 
@@ -239,6 +274,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.interpolateVariablesInQueries = (queries: DataQuery[]): DataQuery[] => {
+
       if (queries && queries.length > 0) {
         return queries.map(query => {
           return {
@@ -251,6 +287,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     }
 
     this.matchMetric = (metric: string) => {
+
         metric = metric || "";
 
         const metricQuery = "ts(" + metric.trim();
@@ -263,12 +300,14 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchMetricTS = (query: string) => {
+
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             return result.data.metrics || [];
         }, (result) => []);
     };
 
     this.matchSource = (metric: string, host: string, scopedVars: any) => {
+
         let query = "ts(\"" + stripQuotesAndTrim(metric) + "\", source=\"" + sanitizePartial(host) + "\")";
         query = this.templateSrv.replace(query, scopedVars);
         
@@ -278,12 +317,14 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchSourceTS = (query: string) => {
+
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             return result.data.hosts || [];
         }, (result) => []);
     };
 
     this.matchSourceTag = (partialName: any) => {
+
         partialName = partialName || "";
         partialName = partialName.toLowerCase();
 
@@ -300,18 +341,21 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchSourceTagTS = (query: string) => {
+
         return this.requestQueryKeysLookup(query.trim(), true).then((result) => {
             return result.data.hostTags || [];
         }, (result) => []);
     };
 
     this.matchMatchingSourceTagTS = (query: string) => {
+
         return this.requestQueryKeysLookup(query.trim(), true).then((result) => {
             return result.data.matchingHostTags || [];
         }, (result) => []);
     };
 
     this.matchPointTag = (partialTag: any, target: any, scopedVars: any) => {
+
         partialTag = partialTag || "";
         partialTag = partialTag.toLowerCase();
         if (partialTag === "*") {
@@ -339,6 +383,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchPointTagTS = (query: string) => {
+
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             // Generate all Point tags for the query
             const allTags = {};
@@ -350,6 +395,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchPointTagValue = (tag: any, partialValue: any, target: any, scopedVars: any) => {
+        
         // Don't try to autocomplete if the corresponding tag name is empty
         if (!tag) {
             return [];
@@ -378,6 +424,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.matchPointTagValueTS = (tag: string, query: string) => {
+
         return this.requestQueryKeysLookup(query.trim()).then((result) => {
             // Generate all Point tag values under the tag for the query
             const allValues = {};
@@ -391,6 +438,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.requestQueryKeysLookup = (query, includeHostTags?) => {
+
         const lookbackStartSecs = Math.floor((new Date().getTime() - queryKeyLookbackMillis) / 1000);
 
         const request = {
@@ -415,6 +463,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.makeQuery = (target, scopedVars?, ignoreFunctions?, ...args: any[]) => {
+
         let query;
 
         if (target.textEditor) {
@@ -429,6 +478,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.buildQuery = (target, ignoreFunctions?, ...args: any[]) => {
+
         if (!target.metric) {
             return "";
         }
@@ -461,6 +511,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
     };
 
     this.buildFilterString = (tags) => {
+
         let result = "";
         _.each(tags, (component) => {
             switch (component.type) {
@@ -489,7 +540,7 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
      */
     this.baseRequestConfig = (method, path, params) => {
         return {
-            ...this.requestConfigProto, url: this.url + path, method, params: params || {},
+            ...requestConfigProto, url: this.url + path, method, params: params || {},
         };
     };
 
@@ -501,8 +552,8 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
      * @returns {*}
      */
     this.requestAutocomplete = (expression, position?) => {
+        console.log("inside requestAutocomplete")
         let pos = position;
-
         // default is to autocomplete the last symbol
         if (!pos && pos !== 0) {
             pos = expression.length;
@@ -514,5 +565,9 @@ export function WavefrontDatasource(instanceSettings, $q, backendSrv, templateSr
 
         return this.backendSrv.datasourceRequest(reqConfig);
     };
+    
+    // Refresh auth token every 25 minutes (25 * 60 * 1000 milliseconds)
+    setInterval(this.getAuthToken(), 25 * 60 * 1000);
+    
 
 }

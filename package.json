@@ -14,12 +14,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@types/angular": "^1.6.2",
-    "@types/lodash": "^4.14.50",
+    "@types/angular": "^1.6.56",
     "@types/jquery": "^2.0.41",
-    "typescript": "^2.1.5"
+    "typescript": "^3.5"
   },
   "devDependencies": {
+    "@types/lodash": "^4.14.112",
     "tslint": "^4.3.1"
   }
 }
